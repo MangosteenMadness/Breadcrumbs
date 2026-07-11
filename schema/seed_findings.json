@@ -1,0 +1,50 @@
+{
+  "_comment": "Cairn seed data. F-093 must be pre-loaded before the demo (Appendix A, Breadcrumbs.pdf). F-118 is NOT pre-seeded — it is written live in Beat 1; the template below shows its shape with {{ }} placeholders to be filled from the real TCGA LUAD run (Appendix B) by 19:00.",
+  "findings": [
+    {
+      "id": "F-093",
+      "disease": "LUAD",
+      "hypothesis_text": "Immune/cytotoxic signature as a stage-independent prognostic model",
+      "signature": "CD8A,GZMB,PRF1,GZMK",
+      "effect": null,
+      "n": null,
+      "status": "abandoned",
+      "author": "Researcher C",
+      "timestamp": "2026-04-15T00:00:00Z",
+      "provenance": "TCGA LUAD, multivariate Cox with stage adjustment",
+      "reason": "Effect collapsed after stage adjustment - signal tracked tumor stage, not independent biology",
+      "note": "Do not re-run without multivariate, stage-adjusted design"
+    },
+    {
+      "id": "F-118",
+      "disease": "LUAD",
+      "hypothesis_text": "High cytotoxic T-cell infiltration is associated with better overall survival",
+      "signature": "CD8A,GZMB,PRF1,GZMK",
+      "effect": "HR {{HR}} (95% CI {{CI}}), log-rank p={{P}}",
+      "n": "high={{N_HIGH}}, low={{N_LOW}}",
+      "status": "confirmed",
+      "author": "Researcher A",
+      "timestamp": "{{date}}",
+      "provenance": "TCGA LUAD, cBioPortal, Kaplan-Meier + log-rank, median OS high={{MEDIAN_HIGH}}mo vs low={{MEDIAN_LOW}}mo",
+      "reason": null,
+      "note": "Written live during Beat 1 of the demo - do not pre-seed"
+    }
+  ],
+  "_optional_second_seed": {
+    "purpose": "Only add if it strengthens (not clutters) the demo - one unrelated confirmed finding in a different indication so the graph visibly holds more than just the demo path.",
+    "example": {
+      "id": "F-071",
+      "disease": "LUSC",
+      "hypothesis_text": "STK11 mutation status is associated with worse overall survival",
+      "signature": "STK11",
+      "effect": "HR 1.6 (95% CI 1.1-2.3), p=0.02",
+      "n": "mutant=88, wildtype=310",
+      "status": "confirmed",
+      "author": "Researcher B",
+      "timestamp": "2026-05-02T00:00:00Z",
+      "provenance": "TCGA LUSC, cBioPortal, Cox proportional hazards",
+      "reason": null,
+      "note": null
+    }
+  }
+}

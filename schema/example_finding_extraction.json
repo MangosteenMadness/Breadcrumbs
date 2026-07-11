@@ -1,0 +1,38 @@
+{
+  "findings": [
+    {
+      "id": "F-118",
+      "category": "LUAD-immune",
+      "disease": "LUAD",
+      "hypothesis_text": "High cytotoxic T-cell infiltration predicts better overall survival in LUAD",
+      "entities": ["CD8A", "GZMB", "PRF1", "GZMK"],
+      "effect": "HR 0.58 (95% CI 0.41-0.82), p=0.002, univariate; median OS 62 vs 38 mo",
+      "status": "confirmed",
+      "reason": null,
+      "author": "Aisha Rahman",
+      "created_at": "2027-01-01T00:00:00Z",
+      "source_session_id": "<replace-with-ingested-session-id>"
+    },
+    {
+      "id": "F-119",
+      "category": "LUAD-immune",
+      "disease": "LUAD",
+      "hypothesis_text": "Cytotoxic signature is a stage-independent prognostic marker in LUAD",
+      "entities": ["CD8A", "GZMB", "PRF1", "GZMK", "AJCC_stage"],
+      "effect": "HR approximately 0.79, p=0.11 after stage adjustment",
+      "status": "abandoned",
+      "reason": "Effect collapsed after stage adjustment - signal largely tracked stage. Do not re-run without a multivariate, stage-adjusted design.",
+      "author": "Aisha Rahman",
+      "created_at": "2027-01-01T00:00:00Z",
+      "source_session_id": "<replace-with-ingested-session-id>"
+    }
+  ],
+  "edges": [
+    {
+      "from_id": "F-119",
+      "to_id": "F-118",
+      "relationship": "extends",
+      "created_at": "2027-01-01T00:00:00Z"
+    }
+  ]
+}

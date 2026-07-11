@@ -1,0 +1,28 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+
+# Cairn local ingestion state and databases (may contain authenticated research chats)
+ingestion/.secrets/
+ingestion/*.db
+ingestion/*.db-shm
+ingestion/*.db-wal
+ingestion/transcripts/
