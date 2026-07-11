@@ -3,10 +3,40 @@
 An internal research-memory layer for Owkin's K Pro AI-scientist platform: before a researcher
 runs a hypothesis, Breadcrumbs checks — internally first — whether someone in the org already
 explored it (including abandoned attempts), then whether the published world has. Full pitch,
-demo script, and role breakdown: [`References/Breadcrumbs.pdf`](References/Breadcrumbs.pdf).
+demo script, and role breakdown:
+[`References/Breadcrumbs-v2.pdf`](References/Breadcrumbs-v2.pdf) (newest;
+[`Breadcrumbs.pdf`](References/Breadcrumbs.pdf) is the earlier version, kept for provenance).
+
+## Spec-driven development — start here
+
+**The specs are the source of truth, not the PDF.** Before writing code, read
+[`AGENTS.md`](AGENTS.md), then your feature under `specs/features/<feature-id>/`. Four features,
+one per owner, so the team works in parallel without colliding:
+
+| Feature | Owns |
+|---|---|
+| [`graph-store`](specs/features/graph-store/) | The SQLite single source of truth |
+| [`research-memory-tools`](specs/features/research-memory-tools/) | The MCP server and its tools — the moat |
+| [`survival-analysis`](specs/features/survival-analysis/) | TCGA slice → survival stratification → finding object |
+| [`demo-flow`](specs/features/demo-flow/) | The two-session demo, the wiki, the video |
+
+Each feature folder holds `spec.tech.md` (what to build, with `file:line` cites and honest
+`not-built` / `gap` statuses), `components.md` (the ordered registry), `feature.json` (the machine
+instance), `scenarios.json`, `evidence.json` (a feature is **done only when evidenced**), and
+`review-queue.md` (open divergences — an open `error` row blocks completion).
+
+```powershell
+python scripts/setupref_validate.py     # component parity + evidence gate; run before you push
+python -m pytest tests/
+```
+
+Methodology ported from AgenticFlow's `setupref`. The repo is self-contained: `.spec/` carries its
+own schemas and templates, and the validator is a Python port so this stays a Node-free repo.
 
 ## Repo map
 
+- **`specs/`** — the four feature specs. Start here.
+- **`.spec/`** — repo-local setupref config, schemas, templates, and pointer evidence.
 - **`ingestion/`** — pulls real K Pro chat sessions (prompts + answers) into a local SQLite
   store. This is the source material the graph is built from. See
   [`ingestion/README.md`](ingestion/README.md) for full setup and usage.
@@ -18,6 +48,7 @@ demo script, and role breakdown: [`References/Breadcrumbs.pdf`](References/Bread
 - **`ui/`** — the Breadcrumbs demo surface: a Next.js chat UI (sidebar history, retrace chat,
   live trail graph). Runs standalone on a seeded mock, and points at the real backend via one
   env var. See [`ui/README.md`](ui/README.md).
+- **`scripts/`** — `setupref_validate.py`, the spec-tree gate.
 
 ## Get the chat ingestor running
 

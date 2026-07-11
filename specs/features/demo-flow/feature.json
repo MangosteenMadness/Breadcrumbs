@@ -1,0 +1,80 @@
+{
+  "feature_id": "demo-flow",
+  "title": "Demo Flow",
+  "feature_owner": "Product/Pitch + Biologists",
+  "business_process": "Show, in two sessions, that the org's own research memory — including its failures — reaches the next researcher before they repeat the work.",
+  "status": "in_progress",
+  "data_classification": "internal",
+  "layers": ["frontend"],
+  "component_ids": [
+    "CRN-DEMO-001",
+    "CRN-DEMO-002",
+    "CRN-DEMO-003",
+    "CRN-DEMO-004",
+    "CRN-DEMO-005",
+    "CRN-DEMO-006",
+    "CRN-DEMO-007"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "REQ-001",
+      "text": "A single command loads the seed graph from scratch, and the abandoned finding F-093 is present with its reason intact.",
+      "coverage": "automated_check",
+      "command": "python scripts/seed_graph.py --check"
+    },
+    {
+      "id": "REQ-002",
+      "text": "Session 1 runs live against the MCP server and the new finding lands in the graph with provenance.",
+      "coverage": "manual_review",
+      "reviewer": "Product/Pitch",
+      "evidence": "screenshot"
+    },
+    {
+      "id": "REQ-003",
+      "text": "In Session 2 — a new session with no shared context — the agent surfaces both the prior finding and the abandoned attempt with its reason, and never uses the word 'novel'.",
+      "coverage": "manual_review",
+      "reviewer": "Biologist 2",
+      "evidence": "screenshot"
+    },
+    {
+      "id": "REQ-004",
+      "text": "From a cold start, the Cairn tools are callable in Claude Desktop.",
+      "coverage": "manual_review",
+      "reviewer": "Product/Pitch",
+      "evidence": "screenshot"
+    },
+    {
+      "id": "REQ-005",
+      "text": "The wiki page renders from the post-demo graph and cites both demo findings.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k render_wiki"
+    },
+    {
+      "id": "REQ-006",
+      "text": "The cross-indication graph visual renders from the post-demo graph with no hand-drawn nodes.",
+      "coverage": "visual_review",
+      "reviewer": "Product/Pitch",
+      "evidence": "screenshot"
+    },
+    {
+      "id": "REQ-007",
+      "text": "A sub-five-minute mp4 or mov recording of the complete two-session flow exists before demo day.",
+      "coverage": "manual_review",
+      "reviewer": "Product/Pitch",
+      "evidence": "review-note"
+    }
+  ],
+  "evidence_required": ["tests", "screenshots"],
+  "frontend": {
+    "owner": "Product/Pitch",
+    "status": "planned",
+    "module": "wiki",
+    "routes": [
+      { "path": "/wiki/{topic}", "page": "TopicWikiPage" },
+      { "path": "/graph", "page": "CrossIndicationGraph" }
+    ]
+  },
+  "open_questions": [
+    "The demo depends on the live TCGA result from survival-analysis. If that slips, Session 1 has no real number to write — see review-queue.md row 1."
+  ]
+}

@@ -17,6 +17,13 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# ...except spec evidence. Evidence is pointer-based: these logs ARE the proof that a
+# requirement is met, so they must be committed despite the *.log rule above.
+!.spec/evidence/**/*.log
+
+# Local backups taken before a schema migration
+ingestion/*.db.bak
+
 # Dependencies
 node_modules/
 

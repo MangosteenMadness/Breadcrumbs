@@ -1,0 +1,57 @@
+{
+  "feature_id": "graph-store",
+  "scenarios": [
+    {
+      "id": "SCN-001",
+      "title": "An abandoned finding survives a round trip through the store",
+      "kind": "happy_path",
+      "mode": "public",
+      "description": "Finding F-093 — the stage-adjustment collapse — is the demo's payload. It must be writable with its reason intact and readable back with the reason attached, because the reason IS the value.",
+      "preconditions": ["The graph store is migrated to the Breadcrumbs-v2 vocabulary"],
+      "steps": [
+        "Write F-093 with status 'abandoned' and a reason explaining the effect collapsed after stage adjustment",
+        "Read it back by disease"
+      ],
+      "expected": [
+        "The finding is returned with status 'abandoned' and its reason text intact",
+        "The reason is not truncated or dropped"
+      ],
+      "linked_requirements": ["REQ-005"],
+      "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-002",
+      "title": "An abandoned finding without a reason is rejected",
+      "kind": "error",
+      "mode": "public",
+      "description": "The human gate. An abandoned attempt with no stated reason is worthless to the next researcher, so the store refuses it rather than accepting a hollow row.",
+      "preconditions": [],
+      "steps": ["Attempt to write a finding with status 'abandoned' and no reason field"],
+      "expected": ["The write is rejected with an error naming the finding", "Nothing is committed"],
+      "linked_requirements": ["REQ-005"],
+      "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-003",
+      "title": "Migrating the committed database preserves every row and edge",
+      "kind": "edge_case",
+      "mode": "public",
+      "description": "ingestion/cairn.db is committed and shared by the team. The CHECK-constraint rebuild drops and recreates the findings table, and finding_edges cascades on delete — so a careless migration silently destroys the graph. Run it twice; nothing may change the second time.",
+      "preconditions": ["A copy of the committed ingestion/cairn.db with at least one session, finding, and edge"],
+      "steps": [
+        "Record row counts for chat_messages, findings, and finding_edges",
+        "Run the migration",
+        "Run the migration a second time",
+        "Re-read the row counts and the live DDL from sqlite_master"
+      ],
+      "expected": [
+        "Row counts are unchanged after both runs — no edge was cascade-deleted",
+        "The findings CHECK constraint now admits 'open' and the edge CHECK admits 'duplicate_of'",
+        "The second run is a no-op"
+      ],
+      "linked_requirements": ["REQ-006", "REQ-001", "REQ-002"],
+      "evidence_required": ["command-log"]
+    }
+  ],
+  "holdout_suites": []
+}
