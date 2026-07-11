@@ -81,6 +81,26 @@ hypothesis text may go to the Claude API for semantic matching is **unresolved a
 credential. `ingestion/cairn.db` and `ingestion/transcripts/` *are* tracked on purpose, so the team
 shares one graph store without each re-scraping.
 
+**GitKB (`.kb/`) is this repo's own project memory — not the Breadcrumbs product graph.** It is a
+separate tool (`git-kb`) used to track tasks, context, and notes about *building this repo*, distinct
+from `ingestion/cairn.db` (the product's research-findings graph described above). `.kb/config.toml`,
+`.kb/AGENTS.md`, and `.kb/store/` are tracked and pushed on `main` on purpose, so a teammate gets a
+working KB on `git pull` — **do not run `git-kb init` again**; that would overwrite the shared config.
+Only `.kb/.cache/` (a regeneratable local index) and `.kb/workspace(s)/` (your own in-progress
+checkout) are gitignored and local-only.
+
+There is no native Windows build of `git-kb` — it lives in WSL Ubuntu. Run every command through the
+bridge from a Windows shell:
+```powershell
+wsl -d Ubuntu -- bash -lc "cd '/mnt/c/Users/<you>/Documents/Github/Biohack' && git-kb <command>"
+```
+Useful commands: `git-kb status` (workspace state), `git-kb list` (documents), `git-kb board`
+(kanban view of tasks), `git-kb context` (bootstrap-context bundle for an agent session), `git-kb
+create --type <type> --slug <slug> --title <title>` (new doc), `git-kb commit` (workspace → KB
+commit). `git-kb doctor` / `git-kb info` are CLI-only (no MCP tool equivalent). Cloud auth
+(`git-kb auth login`, `whoami`, remote `push`/`pull`) is not wired up in this repo yet — it hit a
+DBus/secret-service error under headless WSL; local use (create/list/commit/status) does not need it.
+
 **Never edit a SQLite CHECK constraint in place.** `connect()` runs `executescript(graph_schema.sql)`
 with `CREATE TABLE IF NOT EXISTS` on every connect, so editing the schema file does nothing to the
 committed `cairn.db`. Changing a CHECK requires a table rebuild — and `finding_edges` cascades on
