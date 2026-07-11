@@ -1,0 +1,132 @@
+{
+  "feature_id": "graph-store",
+  "title": "Graph Store",
+  "feature_owner": "Builder 2",
+  "business_process": "Hold every internal finding — confirmed, in-progress, open, and abandoned — plus ingested literature, as the single authoritative record an AI scientist consults before running a hypothesis.",
+  "status": "in_progress",
+  "data_classification": "confidential",
+  "layers": ["contract", "database"],
+  "component_ids": [
+    "BC-GRAPH-001",
+    "BC-GRAPH-002",
+    "BC-GRAPH-003",
+    "BC-GRAPH-004",
+    "BC-GRAPH-005",
+    "BC-GRAPH-006"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "REQ-001",
+      "text": "The status vocabulary (confirmed | in-progress | abandoned | open) is identical in the SQL CHECK constraint, in the write path, and in the MCP tool contracts.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_migration.py -k vocab"
+    },
+    {
+      "id": "REQ-002",
+      "text": "An edge can be written with relationship 'duplicate_of', and a pre-existing 'related-to' edge reads back as 'related'.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_migration.py -k edges"
+    },
+    {
+      "id": "REQ-003",
+      "text": "A finding can be linked to a row in external_literature, and recall returns the finding and the paper together.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_migration.py -k literature"
+    },
+    {
+      "id": "REQ-004",
+      "text": "The K Pro ingestion suite passes: ordered role-labelled turns, section extraction, and idempotent re-ingest.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_ingest_chat.py"
+    },
+    {
+      "id": "REQ-005",
+      "text": "The write path rejects an abandoned finding that carries no reason, and rejects a non-abandoned finding that carries one.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_ingest_chat.py -k findings"
+    },
+    {
+      "id": "REQ-006",
+      "text": "The migration is idempotent and non-destructive: running it twice against the tracked cairn.db leaves row counts unchanged and does not cascade-delete edges.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_migration.py -k idempotent"
+    },
+    {
+      "id": "REQ-007",
+      "text": "A biologist confirms the seeded findings are scientifically credible — a recalled match must survive being read aloud on stage.",
+      "coverage": "manual_review",
+      "reviewer": "Biologist 2",
+      "evidence": "review-note"
+    }
+  ],
+  "evidence_required": ["tests"],
+  "contract": {
+    "owner": "Builder 2",
+    "status": "planned",
+    "source": "schema/vocab.py",
+    "types": ["FindingStatus", "EdgeRelationship"],
+    "enums": ["confirmed", "in-progress", "abandoned", "open", "duplicate_of", "extends", "related", "contradicts"]
+  },
+  "database": {
+    "owner": "Builder 2",
+    "status": "in_progress",
+    "schema_module": "schema/graph_schema.sql",
+    "entities": [
+      {
+        "name": "findings",
+        "columns": [
+          { "name": "id", "type": "text" },
+          { "name": "disease", "type": "text" },
+          { "name": "hypothesis_text", "type": "text" },
+          { "name": "signature", "type": "text" },
+          { "name": "effect", "type": "text" },
+          { "name": "n", "type": "integer" },
+          { "name": "status", "type": "text" },
+          { "name": "author", "type": "text" },
+          { "name": "timestamp", "type": "text" },
+          { "name": "provenance", "type": "text" },
+          { "name": "reason", "type": "text" },
+          { "name": "source_session_id", "type": "text" }
+        ]
+      },
+      {
+        "name": "finding_edges",
+        "columns": [
+          { "name": "from_id", "type": "text" },
+          { "name": "to_id", "type": "text" },
+          { "name": "relationship", "type": "text" },
+          { "name": "created_at", "type": "text" }
+        ]
+      },
+      {
+        "name": "external_literature",
+        "columns": [
+          { "name": "id", "type": "text" },
+          { "name": "source", "type": "text" },
+          { "name": "title", "type": "text" },
+          { "name": "authors", "type": "text" },
+          { "name": "year", "type": "integer" },
+          { "name": "url", "type": "text" },
+          { "name": "doi", "type": "text" },
+          { "name": "abstract", "type": "text" },
+          { "name": "ingested_at", "type": "text" }
+        ]
+      },
+      {
+        "name": "chat_sessions",
+        "columns": [
+          { "name": "id", "type": "text" },
+          { "name": "url", "type": "text" },
+          { "name": "title", "type": "text" },
+          { "name": "scraped_at", "type": "text" },
+          { "name": "raw_json", "type": "text" }
+        ]
+      }
+    ],
+    "migrations": ["BC-GRAPH-006 — CHECK-constraint table rebuild"],
+    "erd_ref": "References/Breadcrumbs-v2.pdf (panel 3)"
+  },
+  "open_questions": [
+    "Should `contradicts` be retained as a superset of the Breadcrumbs-v2 edge vocabulary? See review-queue.md row 1."
+  ]
+}

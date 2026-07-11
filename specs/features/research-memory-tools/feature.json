@@ -1,0 +1,119 @@
+{
+  "feature_id": "research-memory-tools",
+  "title": "Research Memory Tools",
+  "feature_owner": "Builder 2",
+  "business_process": "Before a researcher runs a hypothesis, check the org's own graph first — including abandoned attempts — then the published record, and report what was found in calibrated language.",
+  "status": "planned",
+  "data_classification": "confidential",
+  "layers": ["contract", "backend"],
+  "component_ids": [
+    "BC-MCP-001",
+    "BC-MCP-002",
+    "BC-MCP-003",
+    "BC-MCP-004",
+    "BC-MCP-005",
+    "BC-MCP-006",
+    "BC-MCP-007",
+    "BC-MCP-008",
+    "BC-LIT-001",
+    "BC-MCP-009"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "REQ-001",
+      "text": "The MCP server starts, registers all five tools, and the host lists them.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k registration"
+    },
+    {
+      "id": "REQ-002",
+      "text": "The status and edge vocabularies in the tool contracts equal those in the live database DDL.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_migration.py -k vocab"
+    },
+    {
+      "id": "REQ-003",
+      "text": "When the internal check returns a match, the external literature client is never called. Internal-first is asserted, not assumed.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k internal_first"
+    },
+    {
+      "id": "REQ-004",
+      "text": "Two phrasings of the same hypothesis return 'matched'; an unrelated hypothesis returns 'no-match'.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k semantic_match"
+    },
+    {
+      "id": "REQ-005",
+      "text": "A query related to the abandoned finding F-093 returns it, flagged abandoned, with its reason text attached and not ranked below confirmed work for being abandoned.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k abandoned"
+    },
+    {
+      "id": "REQ-006",
+      "text": "No tool output ever contains the word 'novel'.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k never_novel"
+    },
+    {
+      "id": "REQ-007",
+      "text": "A finding written through write_finding passes the identical validation as one written through the reviewed-write path — the human gate covers both.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k write_gate"
+    },
+    {
+      "id": "REQ-008",
+      "text": "A LUSC question about a signature previously tested in LUAD recalls the LUAD finding.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k cross_indication"
+    },
+    {
+      "id": "REQ-009",
+      "text": "With the network disabled, a previously-cached literature query still returns results.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k cached_literature"
+    },
+    {
+      "id": "REQ-010",
+      "text": "The rendered wiki page cites the findings it was generated from and is reproducible from the graph alone.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_mcp_server.py -k render_wiki"
+    },
+    {
+      "id": "REQ-011",
+      "text": "A biologist confirms that a recalled match is a genuine scientific match — it must survive being read aloud on stage.",
+      "coverage": "manual_review",
+      "reviewer": "Biologist 2",
+      "evidence": "review-note"
+    }
+  ],
+  "evidence_required": ["tests"],
+  "contract": {
+    "owner": "Builder 2",
+    "status": "planned",
+    "source": "mcp_server/contracts.py",
+    "types": [
+      "CheckDuplicationInput",
+      "DuplicationVerdict",
+      "WriteFindingInput",
+      "RecallFindingsInput",
+      "RecallFindingsResult",
+      "RenderWikiInput"
+    ],
+    "enums": ["matched", "possible", "no-match"]
+  },
+  "backend": {
+    "owner": "Builder 2",
+    "status": "planned",
+    "context": "mcp_server",
+    "endpoints": [
+      { "method": "POST", "path": "/mcp/tools/check_duplication" },
+      { "method": "POST", "path": "/mcp/tools/write_finding" },
+      { "method": "POST", "path": "/mcp/tools/recall_findings" },
+      { "method": "POST", "path": "/mcp/tools/render_wiki" }
+    ]
+  },
+  "open_questions": [
+    "check_duplication sends hypothesis text to the Claude API for semantic matching. Confirm this is acceptable for Owkin research data and pin specConfig.approvedModels. See review-queue.md row 1 — this BLOCKS completion."
+  ]
+}

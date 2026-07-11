@@ -1,0 +1,93 @@
+{
+  "feature_id": "graph-store",
+  "items": [
+    {
+      "id": "REQ-001",
+      "kind": "command",
+      "detail": "Status vocabulary is identical in the SQL CHECK, the write path, and the tool contracts",
+      "command": "python -m pytest tests/test_migration.py -k vocab",
+      "cwd": ".",
+      "startedAt": "",
+      "finishedAt": "",
+      "logPath": ".spec/evidence/graph-store/pending/vocab.log",
+      "artifactHash": "",
+      "satisfied": false,
+      "summary": ""
+    },
+    {
+      "id": "REQ-002",
+      "kind": "command",
+      "detail": "duplicate_of is writable; related-to reads back as related",
+      "command": "python -m pytest tests/test_migration.py -k edges",
+      "cwd": ".",
+      "startedAt": "",
+      "finishedAt": "",
+      "logPath": ".spec/evidence/graph-store/pending/edges.log",
+      "artifactHash": "",
+      "satisfied": false,
+      "summary": ""
+    },
+    {
+      "id": "REQ-003",
+      "kind": "command",
+      "detail": "A finding links to an ingested paper and recall returns both",
+      "command": "python -m pytest tests/test_migration.py -k literature",
+      "cwd": ".",
+      "startedAt": "",
+      "finishedAt": "",
+      "logPath": ".spec/evidence/graph-store/pending/literature.log",
+      "artifactHash": "",
+      "satisfied": false,
+      "summary": ""
+    },
+    {
+      "id": "REQ-004",
+      "kind": "command",
+      "detail": "K Pro ingestion suite",
+      "command": "python -m pytest tests/test_ingest_chat.py",
+      "cwd": ".",
+      "startedAt": "",
+      "finishedAt": "",
+      "logPath": ".spec/evidence/graph-store/pending/ingest.log",
+      "artifactHash": "",
+      "satisfied": false,
+      "summary": "Suite passes locally (6 tests) but has not yet been captured as pointer evidence."
+    },
+    {
+      "id": "REQ-005",
+      "kind": "command",
+      "detail": "Abandoned-requires-reason is enforced by the write path",
+      "command": "python -m pytest tests/test_ingest_chat.py -k findings",
+      "cwd": ".",
+      "startedAt": "",
+      "finishedAt": "",
+      "logPath": ".spec/evidence/graph-store/pending/findings.log",
+      "artifactHash": "",
+      "satisfied": false,
+      "summary": ""
+    },
+    {
+      "id": "REQ-006",
+      "kind": "command",
+      "detail": "Migration is idempotent and preserves row counts in the committed cairn.db",
+      "command": "python -m pytest tests/test_migration.py -k idempotent",
+      "cwd": ".",
+      "startedAt": "",
+      "finishedAt": "",
+      "logPath": ".spec/evidence/graph-store/pending/migration.log",
+      "artifactHash": "",
+      "satisfied": false,
+      "summary": ""
+    },
+    {
+      "id": "REQ-007",
+      "kind": "review",
+      "detail": "Biologist confirms the seeded findings are scientifically credible",
+      "reviewer": "Biologist 2",
+      "reviewPath": ".spec/evidence/graph-store/pending/credibility-review.md",
+      "satisfied": false,
+      "summary": ""
+    }
+  ],
+  "complete": false
+}

@@ -1,0 +1,74 @@
+{
+  "feature_id": "research-memory-tools",
+  "scenarios": [
+    {
+      "id": "SCN-001",
+      "title": "Internal-first: an internal match short-circuits the external check",
+      "kind": "happy_path",
+      "mode": "public",
+      "description": "The ordering claim in the pitch is testable, so test it. If the org's own graph already answers the question, no external source is consulted at all.",
+      "preconditions": ["The graph holds a confirmed finding matching the hypothesis"],
+      "steps": [
+        "Call check_duplication with a hypothesis that matches an existing internal finding",
+        "Observe whether the Europe PMC client was invoked"
+      ],
+      "expected": [
+        "A verdict of 'matched' is returned, citing the internal finding",
+        "The external literature client was never called"
+      ],
+      "linked_requirements": ["REQ-003"],
+      "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-002",
+      "title": "The save: an abandoned attempt is surfaced before a researcher repeats it",
+      "kind": "happy_path",
+      "mode": "public",
+      "description": "This is the demo's punchline and the reason the product exists. A researcher asks a question adjacent to work a teammate already abandoned; the abandoned attempt comes back with its reason, so the researcher does not burn a week rediscovering the same dead end.",
+      "preconditions": ["F-093 (abandoned, stage-adjustment collapse) is seeded in the graph"],
+      "steps": [
+        "From a fresh session with no shared context, ask a question related to the signature F-093 tested",
+        "Call recall_findings"
+      ],
+      "expected": [
+        "F-093 is returned and clearly flagged as abandoned",
+        "Its reason — the effect collapsed after stage adjustment — is attached",
+        "It is not buried beneath confirmed findings merely for being abandoned"
+      ],
+      "linked_requirements": ["REQ-005", "REQ-008"],
+      "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-003",
+      "title": "The system never claims novelty",
+      "kind": "error",
+      "mode": "public",
+      "description": "Calibration is the credibility of the whole product. Claiming novelty is a claim the system cannot support, and one overclaim on stage costs more than any missing feature.",
+      "preconditions": [],
+      "steps": [
+        "Call check_duplication with a hypothesis that has no internal or external match",
+        "Inspect every user-facing string in the response"
+      ],
+      "expected": [
+        "The response says no prior work was found in the named sources",
+        "The sources actually searched are named",
+        "The word 'novel' does not appear anywhere in the output"
+      ],
+      "linked_requirements": ["REQ-006"],
+      "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-004",
+      "title": "The demo survives a dead network",
+      "kind": "edge_case",
+      "mode": "public",
+      "description": "The literature check hits a live external API during a live demo at 16:00. Assume the wifi fails, because it will.",
+      "preconditions": ["A literature query has been run once and cached into external_literature"],
+      "steps": ["Disable the network", "Re-run the same literature query"],
+      "expected": ["Cached results are returned from the graph store", "No unhandled exception reaches the host"],
+      "linked_requirements": ["REQ-009"],
+      "evidence_required": ["command-log"]
+    }
+  ],
+  "holdout_suites": []
+}
