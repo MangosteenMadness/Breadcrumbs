@@ -1,7 +1,7 @@
-# Cairn
+# Breadcrumbs
 
 An internal research-memory layer for Owkin's K Pro AI-scientist platform: before a researcher
-runs a hypothesis, Cairn checks — internally first — whether someone in the org already
+runs a hypothesis, Breadcrumbs checks — internally first — whether someone in the org already
 explored it (including abandoned attempts), then whether the published world has. Full pitch,
 demo script, and role breakdown: [`References/Breadcrumbs.pdf`](References/Breadcrumbs.pdf).
 
@@ -15,6 +15,9 @@ demo script, and role breakdown: [`References/Breadcrumbs.pdf`](References/Bread
   (`example_finding_extraction.json`).
 - **`demo/`** — sample Session 1 / Session 2 conversation transcripts matching the pitch's
   demo script, for rehearsal or driving a thin chat UI.
+- **`ui/`** — the Breadcrumbs demo surface: a Next.js chat UI (sidebar history, retrace chat,
+  live trail graph). Runs standalone on a seeded mock, and points at the real backend via one
+  env var. See [`ui/README.md`](ui/README.md).
 
 ## Get the chat ingestor running
 
@@ -42,3 +45,15 @@ typed edges, `source_session_id` pointing at an ingested chat) and run:
 ```powershell
 python ingestion/write_findings.py path/to/your_findings.json
 ```
+
+## Run the UI
+
+```bash
+cd ui
+npm install
+npm run dev            # http://localhost:3000
+```
+
+Works standalone out of the box against a seeded mock. To point it at the real backend, set
+`BREADCRUMBS_MCP_URL` in `ui/.env.local` (see [`ui/README.md`](ui/README.md) for the expected
+response shape).
