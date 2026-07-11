@@ -7,13 +7,13 @@
   "data_classification": "internal",
   "layers": ["frontend"],
   "component_ids": [
-    "CRN-DEMO-001",
-    "CRN-DEMO-002",
-    "CRN-DEMO-003",
-    "CRN-DEMO-004",
-    "CRN-DEMO-005",
-    "CRN-DEMO-006",
-    "CRN-DEMO-007"
+    "BC-DEMO-001",
+    "BC-DEMO-002",
+    "BC-DEMO-003",
+    "BC-DEMO-004",
+    "BC-DEMO-005",
+    "BC-DEMO-006",
+    "BC-DEMO-007"
   ],
   "acceptance_criteria": [
     {
@@ -38,7 +38,7 @@
     },
     {
       "id": "REQ-004",
-      "text": "From a cold start, the Cairn tools are callable in Claude Desktop.",
+      "text": "With BREADCRUMBS_MCP_URL pointed at the real MCP server, the ui/ chat UI drives the full two-session flow against the live graph rather than the seeded mock.",
       "coverage": "manual_review",
       "reviewer": "Product/Pitch",
       "evidence": "screenshot"
@@ -67,14 +67,17 @@
   "evidence_required": ["tests", "screenshots"],
   "frontend": {
     "owner": "Product/Pitch",
-    "status": "planned",
-    "module": "wiki",
+    "status": "in_progress",
+    "module": "ui",
     "routes": [
+      { "path": "/", "page": "RetraceChat" },
+      { "path": "/api/check_duplication", "page": "CheckDuplicationRoute" },
       { "path": "/wiki/{topic}", "page": "TopicWikiPage" },
       { "path": "/graph", "page": "CrossIndicationGraph" }
     ]
   },
   "open_questions": [
-    "The demo depends on the live TCGA result from survival-analysis. If that slips, Session 1 has no real number to write — see review-queue.md row 1."
+    "The demo depends on the live TCGA result from survival-analysis. If that slips, Session 1 has no real number to write — see review-queue.md row 1.",
+    "The ui/ mock and the real MCP server must return the same response shape, or the UI renders garbage the moment it is pointed at the live backend — see review-queue.md row 4."
   ]
 }

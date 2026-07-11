@@ -1,6 +1,6 @@
-# AGENTS.md — Cairn (repo root)
+# AGENTS.md — Breadcrumbs (repo root)
 
-Cairn is an internal research-memory layer for Owkin's K Pro. Before a researcher runs a
+Breadcrumbs is an internal research-memory layer for Owkin's K Pro. Before a researcher runs a
 hypothesis, it checks — **internally first** — whether someone in their own org already explored it,
 *including abandoned attempts*, and only then whether the published world has.
 
@@ -25,11 +25,18 @@ The four features and their owners:
 | `graph-store` | The SQLite single source of truth | contract, database |
 | `research-memory-tools` | The MCP server and its tools — **the moat** | contract, backend |
 | `survival-analysis` | TCGA slice → survival stratification → finding object | backend |
-| `demo-flow` | The two-session demo, the wiki, the video | frontend |
+| `demo-flow` | The two-session demo, the `ui/` chat UI, the wiki, the video | frontend |
 
 Behavior flows contract → database → backend → frontend. Keep them in parity.
 
-## The Cairn rules — these are the product, not style preferences
+**The demo surface is `ui/`** — the Next.js chat UI, which already runs standalone against a seeded
+mock and points at the real backend via `BREADCRUMBS_MCP_URL`. Claude Desktop wiring is optional.
+
+**Before you write `mcp_server/contracts.py`, read `ui/lib/data.ts`.** The `check_duplication`
+response shape is already defined there in TypeScript and the UI is built against it. A Python
+contract that disagrees breaks the demo the moment the UI is pointed at the real server.
+
+## The Breadcrumbs rules — these are the product, not style preferences
 
 **Calibrated language, always.** The system reports *"no prior work found in [sources]"* and names
 the sources it actually searched. It **never** says *"this is novel."* It cannot know that. One
@@ -78,7 +85,7 @@ shares one graph store without each re-scraping.
 with `CREATE TABLE IF NOT EXISTS` on every connect, so editing the schema file does nothing to the
 committed `cairn.db`. Changing a CHECK requires a table rebuild — and `finding_edges` cascades on
 delete from `findings`, so a rebuild with foreign keys enabled will silently destroy every edge.
-See `specs/features/graph-store/spec.tech.md`, CRN-GRAPH-006.
+See `specs/features/graph-store/spec.tech.md`, BC-GRAPH-006.
 
 **Repo-local source of truth.** Use this repo's own `.spec/`, `specs/`, and `AGENTS.md`. Do not
 depend on a path back to AgenticFlow except when deliberately upgrading the setupref version.

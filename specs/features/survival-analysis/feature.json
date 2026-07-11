@@ -7,10 +7,10 @@
   "data_classification": "internal",
   "layers": ["backend"],
   "component_ids": [
-    "CRN-ANLY-001",
-    "CRN-ANLY-002",
-    "CRN-ANLY-003",
-    "CRN-ANLY-004"
+    "BC-ANLY-001",
+    "BC-ANLY-002",
+    "BC-ANLY-003",
+    "BC-ANLY-004"
   ],
   "acceptance_criteria": [
     {

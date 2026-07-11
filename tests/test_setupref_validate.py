@@ -35,7 +35,7 @@ class SpecTreeTests(unittest.TestCase):
 class ComponentScrapeTests(unittest.TestCase):
     def test_finding_ids_are_not_components(self):
         """F-093 matches the component-ID shape but is a finding. Upstream scrapes it; we must not."""
-        self.assertEqual(scrape_component_ids("CRN-GRAPH-001 supersedes F-093 and F-118."), ["CRN-GRAPH-001"])
+        self.assertEqual(scrape_component_ids("BC-GRAPH-001 supersedes F-093 and F-118."), ["BC-GRAPH-001"])
 
     def test_line_range_citations_are_not_components(self):
         """`store.py:46-149` matches upstream's regex because its first segment admits bare digits."""
@@ -45,8 +45,8 @@ class ComponentScrapeTests(unittest.TestCase):
         self.assertEqual(scrape_component_ids("REQ-001 AC-002 SCN-003 HOLDOUT-004"), [])
 
     def test_components_are_ordered_and_deduped(self):
-        text = "CRN-MCP-002 then CRN-MCP-001 then CRN-MCP-002 again"
-        self.assertEqual(scrape_component_ids(text), ["CRN-MCP-002", "CRN-MCP-001"])
+        text = "BC-MCP-002 then BC-MCP-001 then BC-MCP-002 again"
+        self.assertEqual(scrape_component_ids(text), ["BC-MCP-002", "BC-MCP-001"])
 
 
 class ParityGateTests(unittest.TestCase):

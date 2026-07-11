@@ -7,16 +7,16 @@
   "data_classification": "confidential",
   "layers": ["contract", "backend"],
   "component_ids": [
-    "CRN-MCP-001",
-    "CRN-MCP-002",
-    "CRN-MCP-003",
-    "CRN-MCP-004",
-    "CRN-MCP-005",
-    "CRN-MCP-006",
-    "CRN-MCP-007",
-    "CRN-MCP-008",
-    "CRN-LIT-001",
-    "CRN-MCP-009"
+    "BC-MCP-001",
+    "BC-MCP-002",
+    "BC-MCP-003",
+    "BC-MCP-004",
+    "BC-MCP-005",
+    "BC-MCP-006",
+    "BC-MCP-007",
+    "BC-MCP-008",
+    "BC-LIT-001",
+    "BC-MCP-009"
   ],
   "acceptance_criteria": [
     {

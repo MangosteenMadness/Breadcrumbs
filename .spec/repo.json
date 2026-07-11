@@ -1,8 +1,8 @@
 {
   "setupRefVersion": "0.1.0",
-  "repo": "cairn",
+  "repo": "breadcrumbs",
   "owners": [
-    "Cairn team"
+    "Breadcrumbs team"
   ],
   "data_classification": "confidential",
   "layers": [

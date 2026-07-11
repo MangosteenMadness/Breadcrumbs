@@ -7,12 +7,12 @@
   "data_classification": "confidential",
   "layers": ["contract", "database"],
   "component_ids": [
-    "CRN-GRAPH-001",
-    "CRN-GRAPH-002",
-    "CRN-GRAPH-003",
-    "CRN-GRAPH-004",
-    "CRN-GRAPH-005",
-    "CRN-GRAPH-006"
+    "BC-GRAPH-001",
+    "BC-GRAPH-002",
+    "BC-GRAPH-003",
+    "BC-GRAPH-004",
+    "BC-GRAPH-005",
+    "BC-GRAPH-006"
   ],
   "acceptance_criteria": [
     {
@@ -123,7 +123,7 @@
         ]
       }
     ],
-    "migrations": ["CRN-GRAPH-006 — CHECK-constraint table rebuild"],
+    "migrations": ["BC-GRAPH-006 — CHECK-constraint table rebuild"],
     "erd_ref": "References/Breadcrumbs-v2.pdf (panel 3)"
   },
   "open_questions": [

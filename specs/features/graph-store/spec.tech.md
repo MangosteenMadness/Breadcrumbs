@@ -4,13 +4,13 @@ title: "Graph Store — technical reference"
 type: spec
 status: draft
 domain: cairn
-audience: engineers, Cairn team
+audience: engineers, Breadcrumbs team
 parity_of: ./components.md
 registry: ./components.md
 source: References/Breadcrumbs-v2.pdf
 ---
 
-# Cairn / Graph Store — Technical Reference
+# Breadcrumbs / Graph Store — Technical Reference
 
 The SQLite graph store is the **single source of truth** (Breadcrumbs-v2, panel 3). Chat is
 unstructured and not authoritative; the wiki is a generated read-only view. Everything
@@ -25,7 +25,7 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 
 ## GRAPH — findings, edges, literature, provenance
 
-### CRN-GRAPH-001 — Findings node table
+### BC-GRAPH-001 — Findings node table
 - **Behavior:** One row per finding, carrying the full provenance tuple the pitch promises —
   `{disease, hypothesis_text, signature, effect, n, status, author, timestamp, provenance}` — so a
   recalled finding can always answer *who found this, when, on what data, with what effect*.
@@ -38,7 +38,7 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **REQ-001:** The status vocabulary is identical in the SQL CHECK constraint, in the write path, and
   in the MCP tool contracts.
 
-### CRN-GRAPH-002 — Typed finding edges
+### BC-GRAPH-002 — Typed finding edges
 - **Behavior:** Relationships between findings, so recall can walk from a new question to related
   prior work instead of relying on text matching alone.
 - **Data:** `finding_edges`, keyed `(from_id, to_id, relationship)`. Vocabulary:
@@ -51,7 +51,7 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **REQ-002:** An edge can be written with `duplicate_of`, and any pre-existing `related-to` edge
   reads back as `related`.
 
-### CRN-GRAPH-003 — External literature store
+### BC-GRAPH-003 — External literature store
 - **Behavior:** Ingested papers persist in the graph store rather than being re-fetched per query.
   This is what makes the internal-first ordering real — a cached paper is *internal* data by the
   time a duplication check runs — and it means a flaky network cannot break the demo.
@@ -60,7 +60,7 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **Source:** not-built.
 - **REQ-003:** A finding can be linked to an ingested paper, and recall returns both.
 
-### CRN-GRAPH-004 — K Pro chat provenance
+### BC-GRAPH-004 — K Pro chat provenance
 - **Behavior:** Raw K Pro sessions are ingested and stored locally, with each answer's visible
   `##`/`###` Markdown sections extracted as graph-ready categories. No chat text is sent to an
   external LLM during ingestion. A finding points back at the session it was drawn from.
@@ -70,7 +70,7 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **Status:** built-at-parity.
 - **REQ-004:** The ingestion suite passes.
 
-### CRN-GRAPH-005 — Reviewed-write path (the human gate)
+### BC-GRAPH-005 — Reviewed-write path (the human gate)
 - **Behavior:** Findings do not land in the graph because a model said so. A reviewed JSON payload is
   validated and upserted: unknown category rejected, invalid status rejected, `abandoned` without a
   `reason` rejected, non-abandoned *with* a reason rejected, unknown source session rejected, entity
@@ -83,7 +83,7 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
   migration below.
 - **REQ-005:** Writing an abandoned finding with no reason is rejected.
 
-### CRN-GRAPH-006 — Schema migration
+### BC-GRAPH-006 — Schema migration
 - **Behavior:** Bring an existing database up to the Breadcrumbs-v2 vocabulary without losing data.
 - **Data:** rebuilds `findings` and `finding_edges`; creates `external_literature`.
 - **Source:** not-built.
