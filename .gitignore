@@ -31,3 +31,10 @@ ingestion/*.db-wal
 # Python
 __pycache__/
 *.pyc
+
+# GitKB: store/ is the canonical, shareable KB data - tracked intentionally so the
+# team gets it via `git pull` without each running `git-kb init`. Only the derived,
+# regeneratable local index cache and per-user checkout workspace are ignored.
+.kb/.cache/
+.kb/workspace/
+.kb/workspaces/
