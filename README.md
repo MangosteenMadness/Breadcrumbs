@@ -60,7 +60,7 @@ python -m pip install -r ingestion/requirements.txt
 python -m playwright install chromium
 python ingestion/capture_session.py                 # one-time: log in, save session
 python ingestion/ingest_chat.py --recent             # pull recent chats into SQLite
-sqlite3 ingestion/cairn.db "SELECT session_id, role, substr(content,1,80) FROM chat_messages;"
+sqlite3 ingestion/breadcrumbs.db "SELECT session_id, role, substr(content,1,80) FROM chat_messages;"
 ```
 
 Full detail (single-chat ingestion, recovery from a saved HAR/JSON, troubleshooting): see

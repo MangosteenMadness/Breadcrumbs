@@ -1,7 +1,7 @@
-# Cairn K Pro ingestion
+# Breadcrumbs K Pro ingestion
 
 This package stores real K Pro chat prompts and assistant answers locally in
-`ingestion/cairn.db`. It does not send chat text to an external LLM.
+`ingestion/breadcrumbs.db`. It does not send chat text to an external LLM.
 Each successfully ingested chat also gets a readable Markdown view in
 `ingestion/transcripts/<chat-id>.md`.
 
@@ -52,7 +52,7 @@ imports are recorded in `ingestion_errors`; no placeholder messages are written.
 ## Inspect local data
 
 ```powershell
-sqlite3 ingestion/cairn.db "SELECT session_id, seq, role, substr(content,1,80) FROM chat_messages ORDER BY session_id, seq;"
+sqlite3 ingestion/breadcrumbs.db "SELECT session_id, seq, role, substr(content,1,80) FROM chat_messages ORDER BY session_id, seq;"
 ```
 
 Use this local raw-chat store as the source for a later graph/entity extraction step.

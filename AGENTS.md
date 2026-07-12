@@ -78,12 +78,12 @@ hypothesis text may go to the Claude API for semantic matching is **unresolved a
 `specs/features/research-memory-tools/review-queue.md` row 1.
 
 **Never commit `ingestion/.secrets/`.** It holds a live authenticated K Pro session — a real
-credential. `ingestion/cairn.db` and `ingestion/transcripts/` *are* tracked on purpose, so the team
+credential. `ingestion/breadcrumbs.db` and `ingestion/transcripts/` *are* tracked on purpose, so the team
 shares one graph store without each re-scraping.
 
 **GitKB (`.kb/`) is this repo's own project memory — not the Breadcrumbs product graph.** It is a
 separate tool (`git-kb`) used to track tasks, context, and notes about *building this repo*, distinct
-from `ingestion/cairn.db` (the product's research-findings graph described above). `.kb/config.toml`,
+from `ingestion/breadcrumbs.db` (the product's research-findings graph described above). `.kb/config.toml`,
 `.kb/AGENTS.md`, and `.kb/store/` are tracked and pushed on `main` on purpose, so a teammate gets a
 working KB on `git pull` — **do not run `git-kb init` again**; that would overwrite the shared config.
 Only `.kb/.cache/` (a regeneratable local index) and `.kb/workspace(s)/` (your own in-progress
@@ -103,7 +103,7 @@ DBus/secret-service error under headless WSL; local use (create/list/commit/stat
 
 **Never edit a SQLite CHECK constraint in place.** `connect()` runs `executescript(graph_schema.sql)`
 with `CREATE TABLE IF NOT EXISTS` on every connect, so editing the schema file does nothing to the
-committed `cairn.db`. Changing a CHECK requires a table rebuild — and `finding_edges` cascades on
+committed `breadcrumbs.db`. Changing a CHECK requires a table rebuild — and `finding_edges` cascades on
 delete from `findings`, so a rebuild with foreign keys enabled will silently destroy every edge.
 See `specs/features/graph-store/spec.tech.md`, BC-GRAPH-006.
 

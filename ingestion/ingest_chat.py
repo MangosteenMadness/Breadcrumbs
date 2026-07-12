@@ -1,4 +1,4 @@
-"""Ingest real K Pro chats into Cairn's local SQLite store.
+"""Ingest real K Pro chats into Breadcrumbs' local SQLite store.
 
 K Pro is a client-rendered authenticated app. This module observes its JSON traffic
 inside a saved Playwright session instead of attempting unauthenticated HTTP fetches.
@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -19,9 +20,9 @@ from dotenv import load_dotenv
 from playwright.sync_api import Response, sync_playwright
 
 try:
-    from .store import DEFAULT_DB_PATH, connect, record_error, upsert_session
+    from .store import DEFAULT_DB_PATH, connect, ingested_revisions, record_error, upsert_session
 except ImportError:  # Allows `python ingestion/ingest_chat.py ...`.
-    from store import DEFAULT_DB_PATH, connect, record_error, upsert_session
+    from store import DEFAULT_DB_PATH, connect, ingested_revisions, record_error, upsert_session
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = Path(__file__).resolve().parent / ".secrets" / "kpro_storage_state.json"
@@ -128,14 +129,26 @@ def extract_messages(payload: Any) -> list[dict[str, Any]]:
     return [{**turn, "seq": seq} for seq, turn in enumerate(best)]
 
 
-def find_title(payloads: Iterable[CapturedPayload]) -> str | None:
+def find_title(payloads: Iterable[CapturedPayload], session_id: str) -> str | None:
+    """Read the chat's own title, and only its own.
+
+    An earlier version walked every captured payload and took the first title/name/label it
+    found anywhere, which picked up the organization's name ("Default") from /api/user rather
+    than the chat's. Only a payload whose URL carries this chat's id may name this chat.
+    """
     for captured in payloads:
+        if session_id not in captured.url.lower():
+            continue
         for node in walk(captured.data):
-            if isinstance(node, dict):
-                for key in TITLE_KEYS:
-                    value = clean_text(node.get(key))
-                    if value and len(value) < 500:
-                        return value
+            if not isinstance(node, dict):
+                continue
+            identifier = node.get("id") or node.get("chat_id")
+            if not (isinstance(identifier, str) and identifier.lower() == session_id):
+                continue
+            for key in TITLE_KEYS:
+                value = clean_text(node.get(key))
+                if value and len(value) < 500:
+                    return value
     return None
 
 
@@ -149,7 +162,14 @@ def parse_json_response(response: Response) -> CapturedPayload | None:
         return None
 
 
-def capture_page_payloads(page, url: str) -> list[CapturedPayload]:
+def capture_page_payloads(page, url: str, session_id: str | None = None, timeout_ms: int = 90_000) -> list[CapturedPayload]:
+    """Open a chat and collect its JSON traffic, waiting for the chat's own payload.
+
+    K Pro answers carrying plots and datatables run to hundreds of KB and their
+    /api/chats/<id>/messages response can arrive long after network-idle. Waiting a fixed
+    couple of seconds dropped exactly those chats — the richest ones — so this polls until
+    the payload that actually belongs to this chat has turns in it, and only then stops.
+    """
     captured: list[CapturedPayload] = []
 
     def on_response(response: Response) -> None:
@@ -159,22 +179,38 @@ def capture_page_payloads(page, url: str) -> list[CapturedPayload]:
             captured.append(result)
 
     page.on("response", on_response)
-    page.goto(url, wait_until="domcontentloaded", timeout=60_000)
     try:
-        page.wait_for_load_state("networkidle", timeout=15_000)
-    except Exception:
-        pass  # Long-lived app telemetry often prevents network-idle.
-    page.wait_for_timeout(2_000)
-    page.remove_listener("response", on_response)
+        page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+        if session_id is None:
+            try:
+                page.wait_for_load_state("networkidle", timeout=15_000)
+            except Exception:
+                pass  # Long-lived app telemetry often prevents network-idle.
+            page.wait_for_timeout(2_000)
+        else:
+            deadline = time.monotonic() + timeout_ms / 1000
+            while time.monotonic() < deadline:
+                payload = payload_for_chat(captured, session_id)
+                if payload is not None and extract_messages(payload):
+                    break
+                page.wait_for_timeout(500)
+    finally:
+        page.remove_listener("response", on_response)
     return captured
 
 
 def payload_for_chat(payloads: list[CapturedPayload], session_id: str) -> Any | None:
+    """Return the richest payload that provably belongs to this chat.
+
+    Only payloads whose URL carries this chat's id qualify. There is deliberately no
+    "any payload with turns" fallback: that could file another chat's messages under this
+    chat's id — silent cross-contamination in a research-provenance store. A chat whose own
+    payload never arrived is recorded as an ingestion error instead.
+    """
     matching = [p.data for p in payloads if session_id in p.url.lower()]
-    if matching:
-        return max(matching, key=lambda payload: len(extract_messages(payload)))
-    with_turns = [p.data for p in payloads if extract_messages(p.data)]
-    return max(with_turns, key=lambda payload: len(extract_messages(payload)), default=None)
+    if not matching:
+        return None
+    return max(matching, key=lambda payload: len(extract_messages(payload)))
 
 
 def rendered_messages(page) -> list[dict[str, Any]]:
@@ -201,25 +237,83 @@ def rendered_messages(page) -> list[dict[str, Any]]:
     return []
 
 
-def recent_urls(page, base_url: str, payloads: list[CapturedPayload], limit: int) -> list[str]:
-    ids: list[str] = []
-    for captured in payloads:
-        # Only the collection endpoint is a chat-list source. Other payloads include
-        # organization, artifact, and tool UUIDs that must never become chat URLs.
-        if not re.search(r"/api/chats(?:\?.*)?$", captured.url):
-            continue
-        for node in walk(captured.data):
-            if isinstance(node, dict):
-                for key in ("id", "chat_id", "chatId", "conversation_id", "conversationId"):
-                    value = node.get(key)
-                    if isinstance(value, str) and UUID_RE.fullmatch(value):
-                        ids.append(value.lower())
+def bearer_token(page) -> str | None:
+    """Read the OIDC access token the K Pro SPA stores in localStorage.
+
+    K Pro's API is not cookie-authenticated — /api/chats returns 401 on cookies alone. The
+    app attaches `Authorization: Bearer <access_token>`, which oidc-client keeps under an
+    `oidc.user:<issuer>:<client>` key. The token is short-lived (minutes) and the SPA renews
+    it while the page is open, so this is re-read per request rather than cached.
+    """
     try:
-        ids.extend((chat_id(href) for href in page.locator('a[href*="/chat/"]').evaluate_all("els => els.map(e => e.href)")))
+        entries = page.evaluate("() => Object.fromEntries(Object.entries(localStorage))")
     except Exception:
-        pass
-    unique = list(dict.fromkeys(identifier for identifier in ids if identifier))
-    return [urljoin(base_url, f"/chat/{identifier}") for identifier in unique[:limit]]
+        return None
+    for key, value in (entries or {}).items():
+        if not key.startswith("oidc.user:"):
+            continue
+        try:
+            token = json.loads(value).get("access_token")
+        except Exception:
+            continue
+        if isinstance(token, str) and token:
+            return token
+    return None
+
+
+def list_chats(context, page, base_url: str, limit: int) -> list[dict[str, Any]]:
+    """List the signed-in user's chats, newest first, following pagination.
+
+    The chat list is NOT loaded on the home page — K Pro fetches it only on /chat-history,
+    via GET /api/chats?page=N. Walking the home page (the previous behaviour) therefore found
+    zero chats and silently ingested nothing. Deleted chats are skipped.
+    """
+    page_size = min(100, max(1, limit))
+    chats: list[dict[str, Any]] = []
+    page_number = 1
+    while len(chats) < limit:
+        token = bearer_token(page)
+        if not token:
+            break
+        response = context.request.get(
+            f"{base_url}/api/chats?search=&page_size={page_size}&page={page_number}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=60_000,
+        )
+        if not response.ok:
+            break
+        body = response.json()
+        batch = body.get("chats") or []
+        if not batch:
+            break
+        for item in batch:
+            identifier = item.get("id")
+            if not isinstance(identifier, str) or not UUID_RE.fullmatch(identifier):
+                continue
+            if item.get("is_deleted"):
+                continue
+            chats.append({
+                "id": identifier.lower(),
+                "title": item.get("name"),
+                "updated_at": item.get("updated_at") or item.get("last_message_created_at"),
+            })
+        total = body.get("total")
+        if isinstance(total, int) and len(chats) >= total:
+            break
+        page_number += 1
+
+    if not chats:
+        # Fallback: render /chat-history and scrape its links, in case the API shape moves.
+        try:
+            page.goto(f"{base_url}/chat-history", wait_until="domcontentloaded", timeout=60_000)
+            page.wait_for_timeout(5_000)
+            hrefs = page.locator('a[href*="/chat/"]').evaluate_all("els => els.map(e => e.href)")
+        except Exception:
+            hrefs = []
+        seen = dict.fromkeys(identifier for identifier in (chat_id(href) for href in hrefs) if identifier)
+        chats = [{"id": identifier, "title": None, "updated_at": None} for identifier in seen]
+
+    return chats[:limit]
 
 
 def load_from_file(path: Path) -> list[tuple[str, Any]]:
@@ -257,12 +351,12 @@ def load_from_file(path: Path) -> list[tuple[str, Any]]:
     return results
 
 
-def ingest_one(page, connection, url: str) -> bool:
+def ingest_one(page, connection, url: str, *, title: str | None = None, updated_at: str | None = None) -> bool:
     session_id = chat_id(url)
     if not session_id:
         record_error(connection, None, url, "URL does not contain a K Pro chat UUID")
         return False
-    payloads = capture_page_payloads(page, url)
+    payloads = capture_page_payloads(page, url, session_id)
     payload = payload_for_chat(payloads, session_id)
     messages = extract_messages(payload) if payload is not None else []
     if not messages:
@@ -270,8 +364,20 @@ def ingest_one(page, connection, url: str) -> bool:
     if not messages:
         record_error(connection, session_id, url, "No role-labelled user/assistant turns found")
         return False
-    upsert_session(connection, session_id=session_id, url=url, title=find_title(payloads), raw_payload=payload, messages=messages)
-    print(f"Ingested {session_id}: {len(messages)} turns")
+    # The chat list is the authoritative source of a chat's name; fall back to the chat's
+    # own payload only when ingesting a bare URL outside a --recent run.
+    resolved_title = title or find_title(payloads, session_id)
+    upsert_session(
+        connection,
+        session_id=session_id,
+        url=url,
+        title=resolved_title,
+        raw_payload=payload,
+        messages=messages,
+        updated_at=updated_at,
+    )
+    label = f" — {resolved_title[:60]}" if resolved_title else ""
+    print(f"Ingested {session_id}: {len(messages)} turns{label}")
     return True
 
 
@@ -282,6 +388,11 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=50, help="Maximum chats for --recent (default: 50)")
     parser.add_argument("--from-file", type=Path, help="Recover JSON, HAR, or text captured outside the browser")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH, help="SQLite destination")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-ingest chats already stored and unchanged since the last run (default: skip them)",
+    )
     args = parser.parse_args()
     if not args.urls and not args.recent and not args.from_file:
         parser.error("provide a chat URL/UUID, --recent, or --from-file")
@@ -306,18 +417,57 @@ def main() -> None:
             browser = playwright.chromium.launch(headless=True)
             context = browser.new_context(storage_state=str(STATE_PATH))
             page = context.new_page()
-            urls = []
+
+            targets: dict[str, dict[str, Any]] = {}
             if args.recent:
-                home_payloads = capture_page_payloads(page, base_url)
-                urls.extend(recent_urls(page, base_url, home_payloads, args.limit))
+                page.goto(base_url, wait_until="domcontentloaded", timeout=60_000)
+                page.wait_for_timeout(3_000)
+                discovered = list_chats(context, page, base_url, args.limit)
+                if not discovered:
+                    raise SystemExit(
+                        "No chats found. The saved session may have expired — re-run capture_session.py."
+                    )
+                print(f"Found {len(discovered)} chat(s) in K Pro history.")
+                for chat in discovered:
+                    targets[chat["id"]] = chat
             for value in args.urls:
-                urls.append(value if value.startswith("http") else f"{base_url}/chat/{value}")
-            for url in dict.fromkeys(urls):
+                identifier = chat_id(value)
+                if not identifier:
+                    record_error(connection, None, value, "URL does not contain a K Pro chat UUID")
+                    print(f"Skipping {value}: not a K Pro chat UUID")
+                    continue
+                targets.setdefault(identifier, {"id": identifier, "title": None, "updated_at": None})
+
+            # Incremental by default: a chat already stored at the same K Pro revision is left
+            # alone, so re-running --recent continues where the last run stopped instead of
+            # re-scraping the whole history. --force overrides.
+            stored = ingested_revisions(connection)
+            ingested = skipped = failed = 0
+            for identifier, chat in targets.items():
+                revision = chat.get("updated_at")
+                if (
+                    not args.force
+                    and identifier in stored
+                    and revision is not None
+                    and stored[identifier] == revision
+                ):
+                    skipped += 1
+                    continue
+                url = urljoin(base_url, f"/chat/{identifier}")
                 try:
-                    ingest_one(page, connection, url)
+                    if ingest_one(page, connection, url, title=chat.get("title"), updated_at=revision):
+                        ingested += 1
+                    else:
+                        failed += 1
                 except Exception as exc:
-                    record_error(connection, chat_id(url), url, f"{type(exc).__name__}: {exc}")
+                    failed += 1
+                    record_error(connection, identifier, url, f"{type(exc).__name__}: {exc}")
                     print(f"Could not ingest {url}: {exc}")
+
+            summary = f"Done. {ingested} ingested, {skipped} unchanged (skipped), {failed} failed."
+            if failed:
+                summary += " See the ingestion_errors table for detail."
+            print(summary)
             browser.close()
     finally:
         connection.close()
