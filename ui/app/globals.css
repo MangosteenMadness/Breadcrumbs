@@ -183,7 +183,7 @@ button{font-family:inherit}
   max-height:calc(100vh - 24px);overflow:auto;
   background:#0C120C;border:1px solid rgba(231,235,227,.16);border-radius:11px;
   padding:12px 13px;box-shadow:0 14px 40px rgba(0,0,0,.55);
-  pointer-events:none;animation:rise .16s ease both;text-align:left}
+  animation:rise .16s ease both;text-align:left}
 .nodecard::-webkit-scrollbar{width:6px}
 .nodecard::-webkit-scrollbar-thumb{background:#2a332a;border-radius:4px}
 .nc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}

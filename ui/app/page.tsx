@@ -636,6 +636,19 @@ function TrailGraph({
   // anchor the hover card to the marker's real on-screen position (cx,cy) so it
   // can be viewport-fixed — that keeps it from being clipped by the scrolling panel.
   const [hover, setHover] = useState<{ f: Finding; cx: number; cy: number } | null>(null);
+  // grace delay so moving the cursor from the marker onto the card (across the
+  // gap) doesn't close it — and so the card itself can be hovered & scrolled.
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setHover(null), 160);
+  };
 
   // the retrace path: thread the matched markers in reveal order — grows
   // one segment at a time as `highlight` fills in.
@@ -694,9 +707,10 @@ function TrailGraph({
             onClick={() => onPick(f)}
             onMouseEnter={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
+              cancelClose();
               setHover({ f, cx: r.left + r.width / 2, cy: r.top + r.height / 2 });
             }}
-            onMouseLeave={() => setHover((h) => (h?.f === f ? null : h))}
+            onMouseLeave={scheduleClose}
           >
             {/* invisible hit target — bigger than the cairn so hover is easy to land */}
             <circle cx={f.x} cy={f.y} r={11} fill="transparent" />
@@ -727,7 +741,14 @@ function TrailGraph({
       })}
     </svg>
 
-    {hover && <NodeCard hover={hover} large={large} />}
+    {hover && (
+      <NodeCard
+        hover={hover}
+        large={large}
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
+      />
+    )}
     </div>
   );
 }
@@ -740,9 +761,13 @@ function TrailGraph({
 function NodeCard({
   hover,
   large,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   hover: { f: Finding; cx: number; cy: number };
   large: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
 }) {
   const { f, cx, cy } = hover;
   const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
@@ -776,6 +801,8 @@ function NodeCard({
     <div
       className={"nodecard" + (large ? " nc-large" : "")}
       style={{ left, top, width: cardW }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="nc-head">
         <span className={"nc-badge nc-" + f.st}>{f.st.replace("_", " ")}</span>
