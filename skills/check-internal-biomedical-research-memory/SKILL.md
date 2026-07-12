@@ -27,6 +27,11 @@ If the connector tools are not loaded, search for the `breadcrumbs` tools, then 
 
 ## Read before reasoning
 
+For a natural-language research question, call `breadcrumbs:check_duplication` and
+`breadcrumbs:recall_knowledge` before answering. Use `breadcrumbs:recall_findings` when the user
+asks for related prior work or graph context. Use the exact `breadcrumbs:read` tool only when the
+request supplies a credible stored field and value.
+
 The tool performs exact equality matching, not semantic or fuzzy search. Treat natural-language
 terms in the request as search clues, not necessarily as the literal values stored in Breadcrumbs.
 
@@ -125,9 +130,23 @@ be reported as separate stored facts; do not add a post-hoc power interpretation
 contacting a person or propose follow-up work unless the researcher asks for recommendations. Do
 not narrate tool discovery or internal reasoning in the final answer.
 
+## Capture interaction knowledge after approval
+
+When an exchange changes what a future researcher should believe or do, propose at most one
+concise Memory Diff immediately after the correction, decision, exception, or abandoned approach.
+Generic summaries and unsupported implications are not candidates.
+
+The candidate must include a scoped proposition, rationale, exact quote from an ingested source
+message, author, fixed before/after belief samples, and any structured action change. Call
+`breadcrumbs:score_surprise`, then show the calculated belief shift and Bayesian surprise as
+measures of belief movement—not importance or originality. Do not call
+`breadcrumbs:write_knowledge` until a person explicitly approves that exact diff. Supply the
+approver through the separate `approved_by` argument. If the person edits or declines it, do not
+persist the unapproved version.
+
 ## Write reviewed findings only
 
-Call `breadcrumbs:write` only when the conversation contains a reviewed finding supported by an ingested source session. Write one finding per tool call.
+Call `breadcrumbs:write_finding` only when the conversation contains a reviewed finding supported by an ingested source session. Write one finding per tool call.
 
 Required `record` fields:
 

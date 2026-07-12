@@ -1,5 +1,5 @@
 -- Breadcrumbs graph store: findings as nodes (SQLite, lightest-path per Breadcrumbs.pdf)
--- status: confirmed | in-progress | abandoned
+-- status: confirmed | in-progress | abandoned | open
 
 -- A controlled registry prevents topic pages from fragmenting through free-text
 -- variants. Add approved categories deliberately before writing findings.
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS findings (
     signature       TEXT,                   -- comma-separated gene/marker list, e.g. "CD8A,GZMB,PRF1,GZMK"
     effect          TEXT,                   -- e.g. "HR 1.8, 95% CI 1.2-2.6"
     n               INTEGER,                -- cohort size
-    status          TEXT NOT NULL CHECK (status IN ('confirmed', 'in-progress', 'abandoned')),
+    status          TEXT NOT NULL CHECK (status IN ('confirmed', 'in-progress', 'abandoned', 'open')),
     author          TEXT NOT NULL,
     timestamp       TEXT NOT NULL,          -- ISO 8601
     provenance      TEXT,                   -- data source / method, e.g. "TCGA LUAD, cBioPortal, KM+Cox"
@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_findings_status ON findings(disease, status);
 CREATE TABLE IF NOT EXISTS finding_edges (
     from_id     TEXT NOT NULL REFERENCES findings(id) ON DELETE CASCADE,
     to_id       TEXT NOT NULL REFERENCES findings(id) ON DELETE CASCADE,
-    relationship TEXT NOT NULL CHECK (relationship IN ('extends', 'contradicts', 'related-to')),
+    relationship TEXT NOT NULL CHECK (relationship IN ('duplicate_of', 'extends', 'related', 'contradicts')),
     created_at  TEXT NOT NULL,
     PRIMARY KEY (from_id, to_id, relationship)
 );

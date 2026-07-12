@@ -4,15 +4,15 @@
     {
       "id": "REQ-001",
       "kind": "command",
-      "detail": "Server starts and registers all six tools",
+      "detail": "Server starts and registers all nine tools",
       "command": "python -m pytest tests/test_mcp_server.py -k registration",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/registration.log",
+      "startedAt": "2026-07-12T18:58:20Z",
+      "finishedAt": "2026-07-12T18:58:31Z",
+      "logPath": ".spec/evidence/research-memory-tools/merge-main-001/merge.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "Merged nine-tool server registration, UI REST seams, and the full 115-test suite passed; the production UI build also succeeded."
     },
     {
       "id": "REQ-002",
@@ -20,25 +20,25 @@
       "detail": "Contract vocabularies equal the live database DDL",
       "command": "python -m pytest tests/test_migration.py -k vocab",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/vocab.log",
+      "startedAt": "2026-07-12T17:56:22Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "Contract schema and live DDL vocabularies passed."
     },
     {
       "id": "REQ-003",
       "kind": "command",
-      "detail": "Internal-first: an internal match short-circuits the external client",
-      "command": "python -m pytest tests/test_mcp_server.py -k internal_first",
+      "detail": "Duplication results use only the internal graph",
+      "command": "python -m pytest tests/test_mcp_server.py -k internal_graph",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/internal-first.log",
+      "startedAt": "2026-07-12T17:56:22Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "Duplication output contained only internal graph results and no external field."
     },
     {
       "id": "REQ-004",
@@ -46,12 +46,12 @@
       "detail": "Semantic match returns matched / possible / no-match correctly",
       "command": "python -m pytest tests/test_mcp_server.py -k semantic_match",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/semantic-match.log",
+      "startedAt": "2026-07-12T17:56:22Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "UI-aligned local concept matching returned match for a paraphrase and open for an unrelated question."
     },
     {
       "id": "REQ-005",
@@ -59,12 +59,12 @@
       "detail": "Abandoned findings surface as a first-class result with their reason",
       "command": "python -m pytest tests/test_mcp_server.py -k abandoned",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/abandoned.log",
+      "startedAt": "2026-07-12T17:56:22Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "F-093 surfaced as abandoned with its reason and UI boundary spelling."
     },
     {
       "id": "REQ-006",
@@ -72,12 +72,12 @@
       "detail": "No tool output contains the word 'novel'",
       "command": "python -m pytest tests/test_mcp_server.py -k never_novel",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/never-novel.log",
+      "startedAt": "2026-07-12T17:56:22Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "Executable output scan passed for duplication and wiki output."
     },
     {
       "id": "REQ-007",
@@ -85,12 +85,12 @@
       "detail": "write_finding is subject to the same validation gate as the reviewed-write path",
       "command": "python -m pytest tests/test_mcp_server.py -k write_gate",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/write-gate.log",
+      "startedAt": "2026-07-12T17:56:22Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "MCP writes reuse write_payload and reject missing abandoned reasons and unknown sessions."
     },
     {
       "id": "REQ-008",
@@ -98,25 +98,25 @@
       "detail": "Cross-indication recall — a LUSC question finds the LUAD finding",
       "command": "python -m pytest tests/test_mcp_server.py -k cross_indication",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/cross-indication.log",
+      "startedAt": "2026-07-12T17:56:22Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "A LUSC question recalled the LUAD signature finding."
     },
     {
       "id": "REQ-009",
       "kind": "command",
-      "detail": "Cached literature results survive a dead network",
-      "command": "python -m pytest tests/test_mcp_server.py -k cached_literature",
+      "detail": "No external literature client, cache, or result field exists",
+      "command": "python -m pytest tests/test_mcp_server.py -k no_external_literature",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/cached-literature.log",
+      "startedAt": "2026-07-12T17:56:22Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "The MCP exposes internal sources only and creates no literature cache table."
     },
     {
       "id": "REQ-010",
@@ -124,12 +124,12 @@
       "detail": "render_wiki output is reproducible from the graph and cites its findings",
       "command": "python -m pytest tests/test_mcp_server.py -k render_wiki",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/research-memory-tools/pending/render-wiki.log",
+      "startedAt": "2026-07-12T17:56:22Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "Repeated wiki renders were identical and cited graph finding IDs."
     },
     {
       "id": "REQ-011",

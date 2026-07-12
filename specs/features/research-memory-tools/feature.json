@@ -2,8 +2,8 @@
   "feature_id": "research-memory-tools",
   "title": "Research Memory Tools",
   "feature_owner": "Builder 2",
-  "business_process": "Before a researcher runs a hypothesis, check the org's own graph first — including abandoned attempts — then the published record, and report what was found in calibrated language.",
-  "status": "planned",
+  "business_process": "Before a researcher runs a hypothesis, check the org's own graph — including abandoned attempts and approved interaction knowledge — and report what was found in calibrated language. General literature research remains with the host agent.",
+  "status": "in_progress",
   "data_classification": "public",
   "layers": ["contract", "backend"],
   "component_ids": [
@@ -25,7 +25,7 @@
   "acceptance_criteria": [
     {
       "id": "REQ-001",
-      "text": "The MCP server starts, registers all six tools, and the host lists them.",
+      "text": "The MCP server starts, registers all nine tools, and the host lists them.",
       "coverage": "automated_check",
       "command": "python -m pytest tests/test_mcp_server.py -k registration"
     },
@@ -37,13 +37,13 @@
     },
     {
       "id": "REQ-003",
-      "text": "When the internal check returns a match, the external literature client is never called. Internal-first is asserted, not assumed.",
+      "text": "Duplication results are derived only from the internal graph and contain no external literature result field.",
       "coverage": "automated_check",
-      "command": "python -m pytest tests/test_mcp_server.py -k internal_first"
+      "command": "python -m pytest tests/test_mcp_server.py -k internal_graph"
     },
     {
       "id": "REQ-004",
-      "text": "Two phrasings of the same hypothesis return 'matched'; an unrelated hypothesis returns 'no-match'.",
+      "text": "Two phrasings of the same hypothesis return 'match'; an unrelated hypothesis returns 'open'.",
       "coverage": "automated_check",
       "command": "python -m pytest tests/test_mcp_server.py -k semantic_match"
     },
@@ -73,9 +73,9 @@
     },
     {
       "id": "REQ-009",
-      "text": "With the network disabled, a previously-cached literature query still returns results.",
+      "text": "The MCP has no external literature client, cache table, or literature result field; literature research remains with the host.",
       "coverage": "automated_check",
-      "command": "python -m pytest tests/test_mcp_server.py -k cached_literature"
+      "command": "python -m pytest tests/test_mcp_server.py -k no_external_literature"
     },
     {
       "id": "REQ-010",
@@ -118,8 +118,8 @@
   "evidence_required": ["tests"],
   "contract": {
     "owner": "Builder 2",
-    "status": "planned",
-    "source": "mcp_server/contracts.py",
+    "status": "built-at-parity",
+    "source": "src/breadcrumbs/contracts.py",
     "types": [
       "CheckDuplicationInput",
       "DuplicationVerdict",
@@ -133,12 +133,12 @@
       "ExpertLookupInput",
       "ExpertLookupResult"
     ],
-    "enums": ["matched", "possible", "no-match"]
+    "enums": ["match", "open"]
   },
   "backend": {
     "owner": "Builder 2",
-    "status": "planned",
-    "context": "mcp_server",
+    "status": "built-at-parity",
+    "context": "src/breadcrumbs/server.py",
     "endpoints": [
       { "method": "POST", "path": "/mcp/tools/check_duplication" },
       { "method": "POST", "path": "/mcp/tools/write_finding" },

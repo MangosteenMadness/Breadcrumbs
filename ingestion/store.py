@@ -24,10 +24,115 @@ def connect(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     connection.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    _migrate_graph_vocabulary(connection)
     _migrate_findings(connection)
     _migrate_chat_tables(connection)
     _migrate_knowledge_tables(connection)
     return connection
+
+
+def _migrate_graph_vocabulary(connection: sqlite3.Connection) -> None:
+    """Rebuild the two constrained graph tables without losing rows or edges.
+
+    SQLite cannot alter CHECK constraints. Foreign keys are disabled before the
+    transaction so renaming/dropping findings cannot cascade-delete the graph.
+    The live DDL decides whether a migration is needed, making the operation
+    idempotent even for databases created before this repo had migrations.
+    """
+
+    findings_sql_row = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='findings'"
+    ).fetchone()
+    edges_sql_row = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='finding_edges'"
+    ).fetchone()
+    findings_sql = (findings_sql_row[0] if findings_sql_row else "").lower()
+    edges_sql = (edges_sql_row[0] if edges_sql_row else "").lower()
+    needs_findings = "'open'" not in findings_sql
+    needs_edges = "'duplicate_of'" not in edges_sql or "'related-to'" in edges_sql
+    if not (needs_findings or needs_edges):
+        return
+
+    connection.commit()
+    connection.execute("PRAGMA foreign_keys = OFF")
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute("ALTER TABLE finding_edges RENAME TO __finding_edges_legacy")
+        connection.execute("ALTER TABLE findings RENAME TO __findings_legacy")
+        connection.execute(
+            """
+            CREATE TABLE findings (
+                id TEXT PRIMARY KEY,
+                disease TEXT NOT NULL,
+                hypothesis_text TEXT NOT NULL,
+                signature TEXT,
+                effect TEXT,
+                n INTEGER,
+                status TEXT NOT NULL CHECK (status IN ('confirmed', 'in-progress', 'abandoned', 'open')),
+                author TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                provenance TEXT,
+                reason TEXT,
+                note TEXT,
+                category TEXT REFERENCES topic_categories(id),
+                entities TEXT,
+                source_session_id TEXT REFERENCES chat_sessions(id),
+                source_type TEXT CHECK (source_type IN ('external', 'internal')),
+                markdown TEXT,
+                resources TEXT
+            )
+            """
+        )
+        legacy_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(__findings_legacy)")
+        }
+        ordered_columns = [
+            "id", "disease", "hypothesis_text", "signature", "effect", "n", "status",
+            "author", "timestamp", "provenance", "reason", "note", "category", "entities",
+            "source_session_id", "source_type", "markdown", "resources",
+        ]
+        select_columns = [name if name in legacy_columns else f"NULL AS {name}" for name in ordered_columns]
+        connection.execute(
+            f"INSERT INTO findings ({', '.join(ordered_columns)}) "
+            f"SELECT {', '.join(select_columns)} FROM __findings_legacy"
+        )
+        connection.execute(
+            """
+            CREATE TABLE finding_edges (
+                from_id TEXT NOT NULL REFERENCES findings(id) ON DELETE CASCADE,
+                to_id TEXT NOT NULL REFERENCES findings(id) ON DELETE CASCADE,
+                relationship TEXT NOT NULL CHECK (
+                    relationship IN ('duplicate_of', 'extends', 'related', 'contradicts')
+                ),
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (from_id, to_id, relationship)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO finding_edges(from_id, to_id, relationship, created_at)
+            SELECT from_id, to_id,
+                   CASE WHEN relationship = 'related-to' THEN 'related' ELSE relationship END,
+                   created_at
+            FROM __finding_edges_legacy
+            """
+        )
+        connection.execute("DROP TABLE __finding_edges_legacy")
+        connection.execute("DROP TABLE __findings_legacy")
+        connection.execute("CREATE INDEX idx_findings_disease ON findings(disease)")
+        connection.execute("CREATE INDEX idx_findings_status ON findings(disease, status)")
+        connection.execute("CREATE INDEX idx_findings_category ON findings(category)")
+        connection.execute("CREATE INDEX idx_findings_source_session ON findings(source_session_id)")
+        violations = list(connection.execute("PRAGMA foreign_key_check"))
+        if violations:
+            raise sqlite3.IntegrityError(f"graph migration left foreign-key violations: {violations}")
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.execute("PRAGMA foreign_keys = ON")
 
 
 def _migrate_findings(connection: sqlite3.Connection) -> None:

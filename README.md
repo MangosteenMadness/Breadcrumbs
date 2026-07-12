@@ -54,10 +54,14 @@ own schemas and templates, and the validator is a Python port so this stays a No
 ## Breadcrumbs MCP server
 
 The MCP server is a thin adapter over the same `ingestion/breadcrumbs.db` used by the ingestion
-pipeline. It does not create a second database or schema. It exposes six tools:
+pipeline. It does not create a second database or schema. It exposes nine tools:
 
-- `write(record)` validates and inserts one reviewed finding using
+- `check_duplication(hypothesis_text, limit)` searches the internal findings graph and returns the
+  UI-compatible `match | open` contract without calling an external literature service.
+- `write_finding(record)` validates and inserts one reviewed finding using
   `ingestion/write_findings.py`.
+- `recall_findings(query, limit)` retrieves related findings and their graph edges.
+- `render_wiki(finding_ids, title)` generates a cited, read-only Markdown view of the graph.
 - `read(column, value)` performs an allowlisted, parameterized equality query against the
   `findings` table.
 - `score_surprise(...)` fits before/after Beta beliefs from repeated fixed-label judgments and
@@ -101,8 +105,9 @@ BREADCRUMBS_TRANSPORT=http .venv/bin/breadcrumbs-mcp
 ```
 
 The HTTP MCP endpoint is `http://127.0.0.1:8000/mcp`; health is available at `/health`.
-The demo UI uses equivalent REST seams at `/knowledge/score`, `/knowledge`,
-`/knowledge/recall`, and `/experts/find`.
+The demo UI uses equivalent REST seams at `/check_duplication`, `/knowledge/score`, `/knowledge`,
+`/knowledge/recall`, and `/experts/find`. The checked public contract is generated at
+`schema/mcp_contracts.schema.json`.
 Set `BREADCRUMBS_DB` to override the default `ingestion/breadcrumbs.db` path. Dense retrieval is
 enabled by default with `BAAI/bge-small-en-v1.5`; set `BREADCRUMBS_EMBEDDINGS=0` to disable it or
 `BREADCRUMBS_EMBEDDING_MODEL` to an explicitly reviewed local FastEmbed model. The first start

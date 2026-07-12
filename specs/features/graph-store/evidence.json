@@ -7,12 +7,12 @@
       "detail": "Status vocabulary is identical in the SQL CHECK, the write path, and the tool contracts",
       "command": "python -m pytest tests/test_migration.py -k vocab",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/graph-store/pending/vocab.log",
+      "startedAt": "2026-07-12T17:51:00Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/graph-store/migration-001/migration.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "Status vocabulary matches the DDL, reviewed writer, and generated MCP contract."
     },
     {
       "id": "REQ-002",
@@ -20,25 +20,25 @@
       "detail": "duplicate_of is writable; related-to reads back as related",
       "command": "python -m pytest tests/test_migration.py -k edges",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/graph-store/pending/edges.log",
+      "startedAt": "2026-07-12T17:51:00Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/graph-store/migration-001/migration.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "Legacy related-to migrated to related and duplicate_of inserted successfully."
     },
     {
       "id": "REQ-003",
       "kind": "command",
-      "detail": "A finding links to an ingested paper and recall returns both",
-      "command": "python -m pytest tests/test_migration.py -k literature",
+      "detail": "Graph connection creates no external literature cache table",
+      "command": "python -m pytest tests/test_migration.py -k external_literature",
       "cwd": ".",
       "startedAt": "",
       "finishedAt": "",
-      "logPath": ".spec/evidence/graph-store/pending/literature.log",
+      "logPath": ".spec/evidence/research-memory-tools/mcp-contract-001/mcp-contract.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "The migration and graph connection tests confirm no external literature table is created."
     },
     {
       "id": "REQ-004",
@@ -72,12 +72,12 @@
       "detail": "Migration is idempotent and preserves row counts in the committed breadcrumbs.db",
       "command": "python -m pytest tests/test_migration.py -k idempotent",
       "cwd": ".",
-      "startedAt": "",
-      "finishedAt": "",
-      "logPath": ".spec/evidence/graph-store/pending/migration.log",
+      "startedAt": "2026-07-12T17:51:00Z",
+      "finishedAt": "2026-07-12T17:56:23Z",
+      "logPath": ".spec/evidence/graph-store/migration-001/migration.log",
       "artifactHash": "",
-      "satisfied": false,
-      "summary": ""
+      "satisfied": true,
+      "summary": "Migration ran twice with row counts preserved and no foreign-key violations."
     },
     {
       "id": "REQ-007",

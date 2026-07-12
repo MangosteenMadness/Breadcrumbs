@@ -43,9 +43,9 @@ the sources it actually searched. It **never** says *"this is novel."* It cannot
 overclaim on stage costs more than any missing feature, and this is enforced by an executable check
 (`REQ-006` in `research-memory-tools`) rather than left to good intentions.
 
-**Internal-first is an ordering, not a slogan.** A duplication check queries the org's own graph —
-prior findings *and* already-ingested literature — before any external source. If an internal match
-is found, no external source is called at all. This is asserted in a test, not assumed.
+**Internal research memory is the MCP boundary.** A duplication check queries the org's own graph
+for prior findings and does not call an external literature source. General literature research is
+the host agent's responsibility, not a Breadcrumbs tool. This separation is asserted in a test.
 
 **Abandoned work is a first-class result.** An abandoned finding is not a failure to be filtered
 out; it carries a `reason` and it is the most valuable row type in the store. Surfacing it is the

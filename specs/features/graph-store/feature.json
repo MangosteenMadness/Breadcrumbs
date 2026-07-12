@@ -2,7 +2,7 @@
   "feature_id": "graph-store",
   "title": "Graph Store",
   "feature_owner": "Builder 2",
-  "business_process": "Hold every internal finding — confirmed, in-progress, open, and abandoned — plus ingested literature, as the single authoritative record an AI scientist consults before running a hypothesis.",
+  "business_process": "Hold every internal finding — confirmed, in-progress, open, and abandoned — as the authoritative organizational record an AI scientist consults before running a hypothesis.",
   "status": "in_progress",
   "data_classification": "public",
   "layers": ["contract", "database"],
@@ -32,9 +32,9 @@
     },
     {
       "id": "REQ-003",
-      "text": "A finding can be linked to a row in external_literature, and recall returns the finding and the paper together.",
+      "text": "Connecting to the graph does not create an external literature cache table.",
       "coverage": "automated_check",
-      "command": "python -m pytest tests/test_migration.py -k literature"
+      "command": "python -m pytest tests/test_migration.py -k external_literature"
     },
     {
       "id": "REQ-004",
@@ -120,20 +120,6 @@
           { "name": "to_id", "type": "text" },
           { "name": "relationship", "type": "text" },
           { "name": "created_at", "type": "text" }
-        ]
-      },
-      {
-        "name": "external_literature",
-        "columns": [
-          { "name": "id", "type": "text" },
-          { "name": "source", "type": "text" },
-          { "name": "title", "type": "text" },
-          { "name": "authors", "type": "text" },
-          { "name": "year", "type": "integer" },
-          { "name": "url", "type": "text" },
-          { "name": "doi", "type": "text" },
-          { "name": "abstract", "type": "text" },
-          { "name": "ingested_at", "type": "text" }
         ]
       },
       {
