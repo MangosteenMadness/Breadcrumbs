@@ -40,6 +40,8 @@ export interface DuplicationResult {
   matches: Match[];
   external?: string;
   searched: number;
+  /** Optional wiki-style write-up. When present, the UI renders it as the answer body. */
+  markdown?: string;
 }
 
 export const F: Finding[] = [
