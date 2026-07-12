@@ -26,7 +26,10 @@ CREATE TABLE IF NOT EXISTS findings (
     note            TEXT,                   -- freeform guidance for future researchers
     category        TEXT REFERENCES topic_categories(id),
     entities        TEXT,                   -- JSON array of normalized entity tags
-    source_session_id TEXT REFERENCES chat_sessions(id)
+    source_session_id TEXT REFERENCES chat_sessions(id),
+    source_type     TEXT CHECK (source_type IN ('external', 'internal')),  -- internal = org, external = published world
+    markdown        TEXT,                   -- full markdown writeup of the finding
+    resources       TEXT                    -- JSON array of {type:'paper'|'database', citation, url?}; required when source_type='external'
 );
 
 CREATE INDEX IF NOT EXISTS idx_findings_disease ON findings(disease);
