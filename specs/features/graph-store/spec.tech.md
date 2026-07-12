@@ -152,18 +152,33 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
   may replace the same message ID transactionally but may not silently remove an approved source;
   a same-ID content edit reads back with `source_drifted: true`, and the derived FTS5 and embedding rows remain synchronized with the authoritative patch.
 
-### BC-GRAPH-009 — People and contribution edges
+### BC-GRAPH-009 — People, identity evidence, and activity edges
 - **Behavior:** Normalizes exact person names with Unicode NFKC, whitespace collapse, and case-folding
   into stable `P-...` IDs. Automatically discovered names are explicitly `provisional`; no fuzzy
   identity merge is guessed. `person_contributions` records whether a person authored a finding,
   authored approved interaction knowledge, or reviewed a knowledge patch, together with its source
-  session. The links are derived from authoritative artifact provenance and are backfilled on
-  connection so existing stores gain the expertise view without rewriting findings or knowledge.
-- **Data:** `people` and `person_contributions`; contribution vocabulary
-  `finding_author | knowledge_author | knowledge_reviewer`.
+  session. `person_investigations` separately links the named `chat_sessions.researcher` to the
+  first user message's exact question, digest, and session timestamps. Missing researcher identity
+  creates no investigation edge and is never guessed from writing style. Instead,
+  `session_identity_candidates` preserves graded source evidence: a supplied session researcher is
+  `accepted/confirmed`; source-linked finding or knowledge authors are `proposed/supporting`; and an
+  exact normalized initial-question match to a named session is `proposed/weak`. Every candidate
+  records deterministic evidence JSON and its SHA256 digest. Proposed candidates never rewrite
+  `chat_sessions.researcher` or create `person_investigations`; a later human decision can accept or
+  reject them without conflating contribution with session ownership. Investigation links remain
+  activity evidence, not authorship or expertise. All derived links are backfilled on connection so
+  existing stores gain the identity/activity view without rewriting sessions, findings, or
+  knowledge.
+- **Data:** `people`, `person_contributions`, `session_identity_candidates`, and
+  `person_investigations`; contribution vocabulary `finding_author | knowledge_author |
+  knowledge_reviewer`; identity evidence vocabulary `session_researcher | finding_author |
+  knowledge_author | exact_question_match`.
 - **Source:** `schema/graph_schema.sql`; `src/breadcrumbs/people.py`;
   `src/breadcrumbs/store.py`.
 - **Status:** built-at-parity.
 - **REQ-010:** Case/whitespace variants resolve to one stable provisional person; existing and new
-  findings/knowledge produce idempotent role-labelled contribution edges; every edge names its
-  artifact and source session; and no reviewer-only edge is mislabeled as authorship.
+  findings/knowledge produce idempotent role-labelled contribution edges and graded identity
+  candidates; direct named sessions produce accepted identity evidence and idempotent investigation
+  edges with exact initial-question provenance; exact-question propagation remains weak/proposed;
+  blank session researcher fields create no confirmed identity; every candidate carries hashed
+  evidence; and no proposed candidate, review, or investigation edge is mislabeled as authorship.

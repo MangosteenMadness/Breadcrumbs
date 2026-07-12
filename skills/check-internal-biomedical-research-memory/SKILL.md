@@ -1,6 +1,6 @@
 ---
 name: check-internal-biomedical-research-memory
-description: Automatically check Breadcrumbs before proposing, evaluating, or interpreting biomedical hypotheses, experiments, analyses, duplication, novelty, or follow-up research.
+description: Automatically use Breadcrumbs internal research memory before answering any biomedical research planning, hypothesis, experiment, analysis, interpretation, expertise, or follow-up request. Trigger even when the user does not mention Breadcrumbs, prior work, duplication, or novelty, including plain intent statements such as "I am considering...", "I want to test...", and "Should we analyze...?".
 ---
 
 # Check Internal Biomedical Research Memory
@@ -15,6 +15,11 @@ Check Breadcrumbs before answering a request that:
 - plans an analysis or experiment;
 - asks whether work is new, duplicated, previously attempted, or worth repeating;
 - interprets an internal result or recommends follow-up work.
+
+Trigger from research intent, not only explicit memory language. For example, automatically check
+when a researcher says "I am considering a MOSAIC BLCA analysis..." even if they do not ask about
+Breadcrumbs, prior attempts, duplication, expertise, or novelty. Load this skill and query the
+internal tools before giving scientific guidance.
 
 Skip the check for simple educational facts that do not propose or evaluate research.
 
@@ -97,6 +102,28 @@ Why it matters: direct relevance to the current question
 Reason/note: include for abandoned or caveated work
 Source: author, timestamp, source_session_id
 ```
+
+## Answer expertise and investigation questions
+
+Call `breadcrumbs:find_experts` with the scientific topic and only the scope explicitly supplied by
+the researcher. Present the result for a scientific audience:
+
+1. Give a compact evidence summary: person, provisional/verified identity status, confidence,
+   distinct source sessions, and primary evidence count.
+2. List only the returned on-topic evidence with artifact ID, status, stored statistics or effect,
+   stored reason, and source session.
+3. Report `active_investigators` separately. An empty list means only that no qualifying named
+   session activity was retrieved.
+4. State that the ranking is based on source-linked work and does not establish an organizational
+   role or general expertise.
+
+Use literal, technical language. Do not use dramatic framing or metaphors such as "critical
+warning", "hit a wall", "dead end", "shelved", or "worth pausing on". Do not infer that a
+hypothesis was disproven, remains open, or would become significant in a larger cohort unless a
+stored record explicitly supports that statement. A non-significant result and a small cohort may
+be reported as separate stored facts; do not add a post-hoc power interpretation. Do not recommend
+contacting a person or propose follow-up work unless the researcher asks for recommendations. Do
+not narrate tool discovery or internal reasoning in the final answer.
 
 ## Write reviewed findings only
 

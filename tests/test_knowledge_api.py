@@ -51,12 +51,30 @@ class KnowledgeApiTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         connection = connect(os.environ["BREADCRUMBS_DB"])
         connection.execute(
-            "INSERT INTO chat_sessions(id,url,title,scraped_at,raw_json) VALUES (?,?,?,?,?)",
-            ("api-session", "https://example.test/api", "API", "2027-01-01T00:00:00Z", "{}"),
+            "INSERT INTO chat_sessions("
+            "id,url,title,scraped_at,researcher,raw_json"
+            ") VALUES (?,?,?,?,?,?)",
+            (
+                "api-session",
+                "https://example.test/api",
+                "API",
+                "2027-01-01T00:00:00Z",
+                "Dr. Chen",
+                "{}",
+            ),
         )
-        connection.execute(
+        connection.executemany(
             "INSERT INTO chat_messages(id,session_id,seq,role,content) VALUES (?,?,?,?,?)",
-            ("api-session:1", "api-session", 1, "assistant", QUOTE),
+            [
+                (
+                    "api-session:q",
+                    "api-session",
+                    0,
+                    "user",
+                    "How should I interpret TP53 at patient level?",
+                ),
+                ("api-session:1", "api-session", 1, "assistant", QUOTE),
+            ],
         )
         connection.commit()
         connection.close()
@@ -138,6 +156,14 @@ class KnowledgeApiTests(unittest.TestCase):
         result = response.json()
         self.assertEqual(result["experts"][0]["display_name"], "Dr. Chen")
         self.assertEqual(result["experts"][0]["confidence"], "low")
+        self.assertEqual(
+            result["active_investigators"][0]["display_name"], "Dr. Chen"
+        )
+        self.assertFalse(result["active_investigators"][0]["signal_is_expertise"])
+        self.assertGreater(
+            result["experts"][0]["score_components"]["investigation_activity_bonus"],
+            0.0,
+        )
         self.assertIn("sources searched", result["message"])
 
     def test_rest_rejects_reviewer_identity_inside_model_candidate(self) -> None:

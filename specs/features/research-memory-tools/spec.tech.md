@@ -191,20 +191,31 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 ### BC-MCP-013 — `find_experts`
 - **Behavior:** Answers expertise questions by retrieving topic-relevant approved knowledge and
   reviewed findings, resolving their author/reviewer contribution edges to canonical provisional
-  people, and aggregating demonstrated evidence. Authorship and finding ownership count as primary
+  people, and aggregating demonstrated evidence. It separately retrieves named researchers' exact
+  initial session questions as `active_investigators`, including sessions that produced no finding
+  or approved knowledge. Authorship and finding ownership count as primary
   evidence; review is supporting evidence and cannot qualify a person by itself. Repeated evidence
   from one source session is capped so verbosity cannot dominate, abandoned attempts are not
   penalized, and every ranked person includes the concrete artifacts that support the result. The
-  deterministic `expertise_evidence_v1` score is a ranking score, never a probability. Confidence is
-  `low | moderate | high` based on independent source-session and primary-evidence counts. Output
-  says "strongest demonstrated experience among the sources searched," never that someone is the
-  organization's definitive expert.
-- **Data:** reads `people`, `person_contributions`, `knowledge_items`, `knowledge_embeddings`, and
-  `findings`; returns canonical/provisional identity status, role-labelled evidence, distinct
-  session counts, score components, confidence, and searched sources.
+  deterministic `expertise_evidence_v2` score is a ranking score, never a probability. Confidence is
+  `low | moderate | high` based on independent source-session and primary-evidence counts.
+  Investigation activity alone can never create a demonstrated expert; it contributes only a small,
+  capped, exposed bonus to a person who already has primary evidence. Explicit disease scope
+  excludes findings from other or unspecified diseases; low field-coverage matches and non-person
+  labels such as `Unknown` or `AI-agent` are excluded. Output reports the highest evidence score
+  among the sources searched and states that the score establishes neither an organizational role
+  nor general expertise. Host guidance requires compact scientific reporting of stored facts and
+  prohibits dramatic framing, post-hoc interpretation, and unsolicited recommendations.
+- **Data:** reads `people`, `person_contributions`, `person_investigations`, `chat_sessions`,
+  `chat_messages`, `knowledge_items`, `knowledge_embeddings`, and `findings`; returns
+  canonical/provisional identity status, role-labelled evidence, separately ranked investigation
+  activity, distinct session counts, score components, confidence, and searched sources.
 - **Source:** `src/breadcrumbs/store.py`; `src/breadcrumbs/server.py`.
 - **Status:** built-at-parity.
 - **REQ-015:** Independent relevant authored contributions rank above repeated same-session work;
-  review-only people are excluded; abandoned work remains evidence; names differing only in case or
-  whitespace resolve to one provisional person; and empty results name the stores searched without
-  claiming a definitive absence of expertise.
+  review-only and non-person identities are excluded; explicit disease scope removes off-disease
+  findings; low-coverage incidental matches are removed; abandoned work remains evidence; names
+  differing only in case or whitespace resolve to one provisional person; repeated relevant named
+  sessions appear under `active_investigators`; investigator-only people never appear under
+  demonstrated experts; and empty results name the stores searched without claiming a definitive
+  absence of expertise.

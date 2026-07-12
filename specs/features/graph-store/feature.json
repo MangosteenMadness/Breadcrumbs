@@ -75,7 +75,7 @@
     },
     {
       "id": "REQ-010",
-      "text": "Canonical provisional people use stable normalized identity keys, and idempotent role-labelled contribution edges connect them to existing and new findings or approved knowledge with source-session provenance intact.",
+      "text": "Canonical provisional people use stable normalized identity keys; idempotent role-labelled contribution edges connect them to findings or approved knowledge; deterministic session identity evidence distinguishes accepted direct researcher metadata from proposed artifact-author and exact-question candidates; and only accepted named sessions produce investigation edges containing the exact initial research question.",
       "coverage": "automated_check",
       "command": "python -m pytest tests/test_expertise.py -k storage"
     }
@@ -246,6 +246,34 @@
           { "name": "role", "type": "text" },
           { "name": "source_session_id", "type": "text" },
           { "name": "created_at", "type": "text" }
+        ]
+      },
+      {
+        "name": "session_identity_candidates",
+        "columns": [
+          { "name": "session_id", "type": "text" },
+          { "name": "person_id", "type": "text" },
+          { "name": "candidate_name", "type": "text" },
+          { "name": "evidence_type", "type": "text" },
+          { "name": "evidence_strength", "type": "text" },
+          { "name": "status", "type": "text" },
+          { "name": "evidence", "type": "text" },
+          { "name": "evidence_hash", "type": "text" },
+          { "name": "created_at", "type": "text" },
+          { "name": "updated_at", "type": "text" }
+        ]
+      },
+      {
+        "name": "person_investigations",
+        "columns": [
+          { "name": "session_id", "type": "text" },
+          { "name": "person_id", "type": "text" },
+          { "name": "topic_message_id", "type": "text" },
+          { "name": "topic", "type": "text" },
+          { "name": "topic_message_hash", "type": "text" },
+          { "name": "scope", "type": "text" },
+          { "name": "created_at", "type": "text" },
+          { "name": "updated_at", "type": "text" }
         ]
       }
     ],

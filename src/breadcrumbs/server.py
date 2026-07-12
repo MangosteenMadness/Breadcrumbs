@@ -93,12 +93,19 @@ INTERACTION KNOWLEDGE / MEMORY DIFF
   metrics, and rejects paraphrased evidence. Use supersedes_id for a correction to approved memory
   so the prior version stays auditable. If the person skips, persist nothing.
 
-EXPERTISE QUESTIONS
-- For questions such as "who has expertise in X?", call find_experts with the topic and only scope
-  the researcher actually stated. Report the ranked people, evidence confidence, and cited findings
-  or knowledge patches. Say "strongest demonstrated experience among the sources searched," not
-  that somebody is definitively the organization's expert. A provisional identity is an exact
-  normalized-name grouping, not a verified identity merge. Reviewer activity alone is not expertise.
+EXPERTISE AND INVESTIGATION QUESTIONS
+- For questions such as "who has expertise in X?" or "who is investigating X?", call find_experts
+  with the topic and only scope the researcher actually stated. Report `experts` as demonstrated
+  experience backed by cited findings or knowledge patches. Report `active_investigators`
+  separately as named session activity, never as an expertise claim. Use compact scientific prose
+  and tables. Report stored observations, statistics, sample sizes, reasons, and provenance without
+  dramatic framing, metaphors, or inferred biological conclusions. Do not describe work as a
+  warning, dead end, failure, wall, or shelved. Do not infer that a hypothesis remains open, was not
+  disproven, or would succeed with a larger cohort unless a stored record says so. Do not recommend
+  contacting a person or running a follow-up unless asked. A provisional identity is an exact
+  normalized-name grouping, not a verified identity merge. Reviewer activity alone and
+  investigation activity alone are not expertise. Prefer "highest evidence score among the sources
+  searched" and state that the score is not an organizational role or general expertise claim.
 """.strip()
 
 mcp = FastMCP(
@@ -291,7 +298,7 @@ def find_experts(
         Field(ge=1, le=20, description="Maximum cited evidence artifacts per person."),
     ] = 5,
 ) -> dict[str, Any]:
-    """Rank demonstrated experience from source-linked work; never assert a definitive expert."""
+    """Return demonstrated experience and separately labelled investigation activity."""
 
     return store.find_experts(
         topic,

@@ -110,7 +110,7 @@
     },
     {
       "id": "REQ-015",
-      "text": "find_experts ranks canonical people from source-linked relevant knowledge and findings using deterministic role weights and a per-session cap, excludes review-only identities, retains abandoned evidence, exposes all score components and citations, and uses calibrated strongest-demonstrated-experience language.",
+      "text": "find_experts ranks canonical people from source-linked relevant knowledge and findings using deterministic role weights and a per-session cap, separately returns named active investigators, excludes review-only, investigator-only, non-person, off-disease, and low-coverage matches from demonstrated experts, retains abandoned evidence, exposes all score components and citations, and uses concise evidence-score language without unsupported interpretation.",
       "coverage": "automated_check",
       "command": "python -m pytest tests/test_expertise.py"
     }

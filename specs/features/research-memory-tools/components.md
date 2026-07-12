@@ -21,4 +21,4 @@
 | BC-MCP-010 | `score_surprise` — reproducible Bayesian belief shift in bits | built-at-parity |
 | BC-MCP-011 | `write_knowledge` — source-verified human approval gate | built-at-parity |
 | BC-MCP-012 | `recall_knowledge` — BM25+dense rank fusion with constraint-aware active-patch recall | built-at-parity |
-| BC-MCP-013 | `find_experts` — calibrated evidence aggregation over canonical people | built-at-parity |
+| BC-MCP-013 | `find_experts` — demonstrated expertise plus separately calibrated investigation activity | built-at-parity |

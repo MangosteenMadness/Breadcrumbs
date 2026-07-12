@@ -5,7 +5,26 @@ from __future__ import annotations
 import hashlib
 import unicodedata
 
-EXPERTISE_METHOD = "expertise_evidence_v1"
+EXPERTISE_METHOD = "expertise_evidence_v2"
+INVESTIGATION_EXPERTISE_WEIGHT = 0.1
+MIN_EXPERTISE_FINDING_COVERAGE = 0.25
+EXPERTISE_QUERY_NOISE = frozenset(
+    {
+        "company",
+        "demonstrated",
+        "expert",
+        "experts",
+        "expertise",
+        "experience",
+        "has",
+        "investigating",
+        "investigator",
+        "investigators",
+        "our",
+        "strongest",
+        "who",
+    }
+)
 ROLE_WEIGHTS = {
     "knowledge_author": 1.0,
     "finding_author": 0.9,
@@ -42,6 +61,9 @@ def evidence_confidence(*, distinct_sessions: int, primary_evidence_count: int) 
 
 __all__ = [
     "EXPERTISE_METHOD",
+    "EXPERTISE_QUERY_NOISE",
+    "INVESTIGATION_EXPERTISE_WEIGHT",
+    "MIN_EXPERTISE_FINDING_COVERAGE",
     "PRIMARY_ROLES",
     "ROLE_WEIGHTS",
     "clean_person_name",

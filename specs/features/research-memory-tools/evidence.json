@@ -182,15 +182,15 @@
     {
       "id": "REQ-015",
       "kind": "command",
-      "detail": "Expert lookup resolves canonical provisional people and deterministically aggregates source-linked topic evidence with role weights and per-session caps",
+      "detail": "Expert lookup returns concise source-linked evidence, separates investigation activity, and excludes off-disease, low-coverage, and non-person matches",
       "command": "python -m pytest tests/test_expertise.py",
       "cwd": ".",
-      "startedAt": "2026-07-12T15:47:00Z",
-      "finishedAt": "2026-07-12T15:48:48Z",
-      "logPath": ".spec/evidence/research-memory-tools/expertise-001/expertise.log",
-      "artifactHash": "",
+      "startedAt": "2026-07-12T17:14:00Z",
+      "finishedAt": "2026-07-12T17:16:34Z",
+      "logPath": ".spec/evidence/research-memory-tools/scientific-expertise-003/expertise.log",
+      "artifactHash": "93777bd4a6408a2e3756ec389bf9e9ba26f5041ad11bde6a87b4a2b043524b84",
       "satisfied": true,
-      "summary": "3 deterministic expertise tests passed. Fresh ephemeral Codex thread 019f5703-f6ac-7f52-a6b8-64514cb7c07e used find_experts over local hybrid retrieval, ranked Dr. Chen first from two independent sessions, retained abandoned evidence, excluded a review-only identity, and repeated the provisional evidence-backed calibration."
+      "summary": "6 deterministic tests passed. Fresh ephemeral Codex thread 019f5754-1efb-7893-a059-694bc943813b returned only Roopal for scoped BLCA evidence, reported stored statistics and provenance in a compact table, and omitted off-disease, non-person, dramatic, and speculative language."
     }
   ],
   "complete": false

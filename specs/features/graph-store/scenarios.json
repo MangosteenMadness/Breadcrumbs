@@ -74,19 +74,25 @@
     },
     {
       "id": "SCN-005",
-      "title": "Provenance creates canonical provisional people and contribution edges",
+      "title": "Provenance creates canonical people, graded identity evidence, and activity edges",
       "kind": "happy_path",
       "mode": "public",
-      "description": "Existing author and reviewer provenance becomes an expertise graph without guessing that different spellings belong to the same human.",
-      "preconditions": ["Reviewed findings or approved knowledge exist"],
+      "description": "Existing author, reviewer, named-session, and exact-question provenance becomes an expertise/activity graph without guessing that contribution proves session ownership or that asking one question proves expertise.",
+      "preconditions": ["Reviewed findings or approved knowledge exist, and at least one chat session has a named researcher"],
       "steps": [
         "Connect to the store and backfill people/contributions",
+        "Extract direct, artifact-author, and exact-question identity evidence",
+        "Backfill each named session's first user question as an investigation edge",
         "Write another item whose author differs only by case and whitespace",
-        "Inspect people and contribution edges"
+        "Inspect people, contribution edges, and investigation edges"
       ],
       "expected": [
         "Case and whitespace variants share one stable provisional person ID",
         "Authorship and review remain distinct roles",
+        "Direct researcher evidence is accepted while artifact-author and exact-question evidence remains proposed",
+        "Every identity candidate preserves deterministic hashed evidence",
+        "Investigation remains distinct from both roles and preserves the exact question",
+        "A blank researcher produces no investigation edge",
         "Reconnecting does not duplicate contribution edges"
       ],
       "linked_requirements": ["REQ-010"],

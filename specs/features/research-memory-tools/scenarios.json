@@ -134,17 +134,20 @@
       "title": "A fresh agent identifies demonstrated topic expertise with evidence",
       "kind": "happy_path",
       "mode": "public",
-      "description": "The host asks who has expertise in a topic. Breadcrumbs aggregates authored decisions, findings, and abandoned work across independent sessions without turning reviewer activity or message volume into an unsupported expert claim.",
-      "preconditions": ["At least two canonical provisional people have source-linked contributions"],
+      "description": "The host asks who has expertise in or is investigating a topic. Breadcrumbs aggregates authored decisions, findings, and abandoned work across independent sessions while separately surfacing named session owners, without turning reviewer activity, a single question, or message volume into an unsupported expert claim.",
+      "preconditions": ["Canonical provisional people have source-linked contributions and named research sessions"],
       "steps": [
         "Call find_experts with a natural-language topic and optional scope",
         "Inspect the ranked people, confidence, score components, and cited evidence"
       ],
       "expected": [
         "The person with stronger independent primary evidence ranks first",
-        "Repeated work in one session is capped and review-only people are excluded",
+        "Named relevant session owners appear separately as active investigators even without primary evidence",
+        "Investigation activity alone never creates a demonstrated expert",
+        "Repeated work in one session is capped and review-only or non-person identities are excluded",
+        "Explicit disease scope excludes off-disease findings and low-coverage incidental matches",
         "Abandoned work is retained as evidence",
-        "The response is calibrated to the stores searched and does not assert a definitive company expert"
+        "The response is concise, limited to stored evidence, and makes no organizational-title or unsupported biological claim"
       ],
       "linked_requirements": ["REQ-015"],
       "evidence_required": ["command-log"]

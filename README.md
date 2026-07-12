@@ -76,7 +76,16 @@ pipeline. It does not create a second database or schema. It exposes six tools:
 - `find_experts(...)` aggregates source-linked authored knowledge and findings across canonical
   provisional people. It caps repeated evidence per session, keeps abandoned work, excludes
   review-only identities, and returns calibrated confidence plus the supporting artifacts rather
-  than asserting that somebody is definitively the organization's expert.
+  than asserting that somebody is definitively the organization's expert. Named researchers'
+  initial session questions are retrieved separately as `active_investigators`; this weak activity
+  signal can modestly enrich an already-demonstrated expert's score but never creates expertise by
+  itself.
+
+Session identity is provenance-backed. `session_identity_candidates` records accepted direct
+`chat_sessions.researcher` metadata separately from proposed artifact-author and exact-question
+evidence, with canonical JSON and a SHA256 digest. Proposed candidates never rewrite session
+ownership or create `person_investigations`; production deployments should supply the authenticated
+organization actor during ingestion rather than infer identity from writing style.
 
 Install and run over stdio:
 

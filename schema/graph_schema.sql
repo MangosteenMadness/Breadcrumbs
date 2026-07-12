@@ -201,6 +201,53 @@ CREATE INDEX IF NOT EXISTS idx_person_contributions_artifact
 CREATE INDEX IF NOT EXISTS idx_person_contributions_person_session
     ON person_contributions(person_id, source_session_id);
 
+-- Identity evidence is graded rather than silently promoted to session ownership. Direct
+-- researcher metadata is accepted; source-linked artifact authors and exact-question matches are
+-- candidates until a human confirms them. Evidence JSON is canonicalized and hashed so every
+-- inference can be reproduced without relying on writing style.
+CREATE TABLE IF NOT EXISTS session_identity_candidates (
+    session_id        TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    person_id         TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+    candidate_name    TEXT NOT NULL CHECK (length(trim(candidate_name)) > 0),
+    evidence_type     TEXT NOT NULL CHECK (
+        evidence_type IN (
+            'session_researcher', 'finding_author', 'knowledge_author',
+            'exact_question_match'
+        )
+    ),
+    evidence_strength TEXT NOT NULL CHECK (
+        evidence_strength IN ('confirmed', 'supporting', 'weak')
+    ),
+    status            TEXT NOT NULL CHECK (status IN ('accepted', 'proposed', 'rejected')),
+    evidence          TEXT NOT NULL DEFAULT '{}',
+    evidence_hash     TEXT NOT NULL CHECK (length(evidence_hash) = 64),
+    created_at        TEXT NOT NULL,
+    updated_at        TEXT NOT NULL,
+    PRIMARY KEY (session_id, person_id, evidence_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_identity_candidates_person
+    ON session_identity_candidates(person_id, status, evidence_strength);
+CREATE INDEX IF NOT EXISTS idx_session_identity_candidates_session
+    ON session_identity_candidates(session_id, status, evidence_strength);
+
+-- Asking about a topic is useful organizational activity evidence, but it is not authorship and
+-- does not by itself establish expertise. The exact initial user question keeps every edge
+-- auditable; sessions without an explicitly supplied researcher create no row.
+CREATE TABLE IF NOT EXISTS person_investigations (
+    session_id        TEXT PRIMARY KEY REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    person_id         TEXT NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+    topic_message_id  TEXT NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+    topic             TEXT NOT NULL CHECK (length(trim(topic)) > 0),
+    topic_message_hash TEXT NOT NULL CHECK (length(topic_message_hash) = 64),
+    scope             TEXT NOT NULL DEFAULT '{}',
+    created_at        TEXT NOT NULL,
+    updated_at        TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_person_investigations_person
+    ON person_investigations(person_id, updated_at DESC);
+
 -- Visible Markdown sections emitted by K Pro (for example, ## Population
 -- Overview) are graph-ready categories derived without sending text externally.
 -- Sections nest: a level-3 heading belongs to the level-2 heading above it (a

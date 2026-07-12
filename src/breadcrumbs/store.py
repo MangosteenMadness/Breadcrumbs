@@ -40,8 +40,12 @@ from .knowledge import (
     score_samples,
     tokens,
 )
+from .identity import backfill_session_identity_candidates, is_person_candidate
 from .people import (
     EXPERTISE_METHOD,
+    EXPERTISE_QUERY_NOISE,
+    INVESTIGATION_EXPERTISE_WEIGHT,
+    MIN_EXPERTISE_FINDING_COVERAGE,
     PRIMARY_ROLES,
     ROLE_WEIGHTS,
     clean_person_name,
@@ -524,6 +528,11 @@ class BreadcrumbsStore:
                     "DELETE FROM person_contributions WHERE artifact_type = 'knowledge' "
                     "AND artifact_id NOT IN (SELECT id FROM knowledge_items)"
                 )
+                connection.execute(
+                    "DELETE FROM person_investigations WHERE session_id IN ("
+                    "SELECT id FROM chat_sessions "
+                    "WHERE researcher IS NULL OR length(trim(researcher)) = 0)"
+                )
             findings = connection.execute(
                 "SELECT f.id, f.author, f.source_session_id, f.timestamp FROM findings f "
                 "WHERE (SELECT COUNT(*) FROM person_contributions c "
@@ -533,6 +542,30 @@ class BreadcrumbsStore:
                 "SELECT k.id, k.author, k.approved_by, k.source_session_id, k.created_at "
                 "FROM knowledge_items k WHERE (SELECT COUNT(*) FROM person_contributions c "
                 "WHERE c.artifact_type = 'knowledge' AND c.artifact_id = k.id) < 2"
+            ).fetchall()
+            sessions = connection.execute(
+                """
+                SELECT
+                    s.id AS session_id,
+                    s.researcher,
+                    s.scraped_at,
+                    s.updated_at AS session_updated_at,
+                    m.id AS topic_message_id,
+                    m.content AS topic,
+                    m.created_at AS message_created_at,
+                    i.person_id AS investigation_person_id,
+                    i.topic_message_hash AS stored_topic_hash
+                FROM chat_sessions s
+                JOIN chat_messages m ON m.id = (
+                    SELECT first_user.id
+                    FROM chat_messages first_user
+                    WHERE first_user.session_id = s.id AND first_user.role = 'user'
+                    ORDER BY first_user.seq
+                    LIMIT 1
+                )
+                LEFT JOIN person_investigations i ON i.session_id = s.id
+                WHERE s.researcher IS NOT NULL AND length(trim(s.researcher)) > 0
+                """
             ).fetchall()
         finally:
             connection.close()
@@ -555,6 +588,65 @@ class BreadcrumbsStore:
                 source_session_id=row["source_session_id"],
                 created_at=row["created_at"],
             )
+        for row in sessions:
+            expected_person_id = provisional_person_id(row["researcher"])
+            expected_hash = hashlib.sha256(row["topic"].encode("utf-8")).hexdigest()
+            if (
+                row["investigation_person_id"] != expected_person_id
+                or row["stored_topic_hash"] != expected_hash
+            ):
+                self._sync_session_investigation(row)
+        backfill_session_identity_candidates(self.path)
+
+    def _sync_session_investigation(self, session: sqlite3.Row) -> None:
+        """Link a named session owner to the exact first user question as weak activity evidence."""
+
+        display_name = clean_person_name(session["researcher"])
+        normalized_name = normalize_person_name(display_name)
+        person_id = provisional_person_id(normalized_name)
+        topic = nonempty_text(session["topic"], "investigation topic")
+        topic_hash = hashlib.sha256(topic.encode("utf-8")).hexdigest()
+        now = utc_now()
+        created_at = session["message_created_at"] or session["scraped_at"]
+        updated_at = session["session_updated_at"] or session["scraped_at"]
+        connection = connect(self.path)
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO people(
+                        id, display_name, normalized_name, aliases, org_unit,
+                        identity_status, created_at, updated_at
+                    ) VALUES (?, ?, ?, '[]', NULL, 'provisional', ?, ?)
+                    ON CONFLICT(normalized_name) DO NOTHING
+                    """,
+                    (person_id, display_name, normalized_name, now, now),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO person_investigations(
+                        session_id, person_id, topic_message_id, topic,
+                        topic_message_hash, scope, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, '{}', ?, ?)
+                    ON CONFLICT(session_id) DO UPDATE SET
+                        person_id = excluded.person_id,
+                        topic_message_id = excluded.topic_message_id,
+                        topic = excluded.topic,
+                        topic_message_hash = excluded.topic_message_hash,
+                        updated_at = excluded.updated_at
+                    """,
+                    (
+                        session["session_id"],
+                        person_id,
+                        session["topic_message_id"],
+                        topic,
+                        topic_hash,
+                        created_at,
+                        updated_at,
+                    ),
+                )
+        finally:
+            connection.close()
 
     def _ensure_embeddings(self, items: list[dict[str, Any]]) -> None:
         backend = self.embedding_backend
@@ -831,6 +923,136 @@ class BreadcrumbsStore:
         )
         return ranked[:limit]
 
+    def _rank_investigators(
+        self,
+        topic: str,
+        requested_scope: dict[str, Any],
+        *,
+        evidence_limit: int,
+    ) -> list[dict[str, Any]]:
+        """Retrieve named session activity without promoting it to demonstrated expertise."""
+
+        self._backfill_people()
+        connection = connect(self.path)
+        try:
+            rows = connection.execute(
+                """
+                SELECT i.*, p.display_name, p.identity_status
+                FROM person_investigations i
+                JOIN people p ON p.id = i.person_id
+                ORDER BY i.session_id
+                """
+            ).fetchall()
+        finally:
+            connection.close()
+        if not rows:
+            return []
+
+        query_terms = tokens(topic) - EXPERTISE_QUERY_NOISE
+        if not query_terms:
+            query_terms = tokens(topic)
+        dense_similarities: dict[str, float] = {}
+        if self.embedding_backend is not None:
+            documents = [
+                f"topic: {row['topic']}\nscope: {row['scope']}" for row in rows
+            ]
+            vectors = self.embedding_backend.embed_documents(documents)
+            if len(vectors) != len(rows):
+                raise ValueError(
+                    "embedding backend returned the wrong number of investigation vectors"
+                )
+            query_vector = self.embedding_backend.embed_query(topic)
+            dense_similarities = {
+                row["session_id"]: cosine_similarity(query_vector, vector)
+                for row, vector in zip(rows, vectors, strict=True)
+            }
+
+        people: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            stored_scope = json.loads(row["scope"])
+            searchable = {"topic": row["topic"], "scope": stored_scope}
+            lexical = len(query_terms & tokens(searchable)) / len(query_terms)
+            similarity = dense_similarities.get(row["session_id"])
+            dense_signal = 0.0
+            if similarity is not None and similarity >= DENSE_MIN_SIMILARITY:
+                dense_signal = (similarity - DENSE_MIN_SIMILARITY) / (
+                    1.0 - DENSE_MIN_SIMILARITY
+                )
+            if lexical <= 0.0 and dense_signal <= 0.0:
+                continue
+            applicability = scope_compatibility(stored_scope, requested_scope)
+            scope_bonus = (
+                max(0.0, applicability["score"]) * 0.1 if requested_scope else 0.0
+            )
+            relevance = min(1.0, max(lexical, dense_signal) + scope_bonus)
+            investigation = {
+                "session_id": row["session_id"],
+                "topic_message_id": row["topic_message_id"],
+                "topic": row["topic"],
+                "topic_message_hash": row["topic_message_hash"],
+                "scope": stored_scope,
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+                "relevance": round(relevance, 6),
+                "retrieval_components": {
+                    "field_coverage": round(lexical, 6),
+                    "dense_similarity": (
+                        round(similarity, 6) if similarity is not None else None
+                    ),
+                    "embedding_model": (
+                        self.embedding_backend.model_id
+                        if self.embedding_backend is not None
+                        else None
+                    ),
+                    "dense_min_similarity": DENSE_MIN_SIMILARITY,
+                    "scope_applicability": applicability["score"],
+                },
+            }
+            person = people.setdefault(
+                row["person_id"],
+                {
+                    "person_id": row["person_id"],
+                    "display_name": row["display_name"],
+                    "identity_status": row["identity_status"],
+                    "investigations": [],
+                },
+            )
+            person["investigations"].append(investigation)
+
+        ranked: list[dict[str, Any]] = []
+        for person in people.values():
+            investigations = person["investigations"]
+            investigations.sort(
+                key=lambda item: (
+                    item["relevance"],
+                    item["updated_at"],
+                    item["session_id"],
+                ),
+                reverse=True,
+            )
+            score = sum(item["relevance"] for item in investigations[:3])
+            ranked.append(
+                {
+                    **person,
+                    "investigation_score": round(score, 6),
+                    "matching_session_count": len(investigations),
+                    "scored_session_count": min(3, len(investigations)),
+                    "activity_depth": (
+                        "repeated" if len(investigations) >= 2 else "single-session"
+                    ),
+                    "signal_is_expertise": False,
+                    "investigations": investigations[:evidence_limit],
+                }
+            )
+        ranked.sort(
+            key=lambda person: (
+                -person["investigation_score"],
+                -person["matching_session_count"],
+                person["display_name"].casefold(),
+            )
+        )
+        return ranked
+
     def find_experts(
         self,
         topic: str,
@@ -842,7 +1064,9 @@ class BreadcrumbsStore:
         """Rank demonstrated topic experience and return the source evidence behind it."""
 
         topic = nonempty_text(topic, "topic")
-        query_terms = tokens(topic)
+        query_terms = tokens(topic) - EXPERTISE_QUERY_NOISE
+        if not query_terms:
+            query_terms = tokens(topic)
         if not query_terms:
             raise ValueError("topic must include searchable text")
         requested_scope = json_object({} if scope is None else scope, "scope", allow_empty=True)
@@ -854,6 +1078,13 @@ class BreadcrumbsStore:
             or not 1 <= evidence_limit <= 20
         ):
             raise ValueError("evidence_limit must be an integer between 1 and 20")
+
+        active_investigators = self._rank_investigators(
+            topic, requested_scope, evidence_limit=evidence_limit
+        )
+        investigation_by_person = {
+            person["person_id"]: person for person in active_investigators
+        }
 
         knowledge = self.recall_knowledge(
             topic,
@@ -907,6 +1138,12 @@ class BreadcrumbsStore:
 
         for row in finding_rows:
             item = self._decode(row)
+            disease = requested_scope.get("disease")
+            if isinstance(disease, str) and (
+                not isinstance(item.get("disease"), str)
+                or disease.casefold() != item["disease"].casefold()
+            ):
+                continue
             searchable = {
                 "disease": item.get("disease"),
                 "hypothesis_text": item.get("hypothesis_text"),
@@ -918,9 +1155,8 @@ class BreadcrumbsStore:
                 "entities": item.get("entities"),
             }
             coverage = len(query_terms & tokens(searchable)) / len(query_terms)
-            if coverage <= 0.0:
+            if coverage < MIN_EXPERTISE_FINDING_COVERAGE:
                 continue
-            disease = requested_scope.get("disease")
             if (
                 disease is not None
                 and isinstance(disease, str)
@@ -942,6 +1178,8 @@ class BreadcrumbsStore:
 
         people: dict[str, dict[str, Any]] = {}
         for row in contribution_rows:
+            if not is_person_candidate(row["display_name"]):
+                continue
             artifact_key = (row["artifact_type"], row["artifact_id"])
             artifact = artifacts.get(artifact_key)
             if artifact is None:
@@ -994,7 +1232,22 @@ class BreadcrumbsStore:
             session_score = sum(session_best.values())
             independent_session_bonus = 0.1 * min(max(distinct_sessions - 1, 0), 3)
             source_diversity_bonus = 0.05 * max(len(artifact_types) - 1, 0)
-            score = session_score + independent_session_bonus + source_diversity_bonus
+            investigation = investigation_by_person.get(person["person_id"])
+            investigation_activity_bonus = min(
+                (
+                    investigation["investigation_score"]
+                    * INVESTIGATION_EXPERTISE_WEIGHT
+                    if investigation is not None
+                    else 0.0
+                ),
+                0.3,
+            )
+            score = (
+                session_score
+                + independent_session_bonus
+                + source_diversity_bonus
+                + investigation_activity_bonus
+            )
             evidence.sort(
                 key=lambda item: (
                     item["evidence_score"],
@@ -1020,6 +1273,9 @@ class BreadcrumbsStore:
                             independent_session_bonus, 6
                         ),
                         "source_diversity_bonus": round(source_diversity_bonus, 6),
+                        "investigation_activity_bonus": round(
+                            investigation_activity_bonus, 6
+                        ),
                     },
                     "evidence": evidence[:evidence_limit],
                 }
@@ -1035,17 +1291,24 @@ class BreadcrumbsStore:
             reverse=True,
         )
         ranked = ranked[:limit]
-        searched_sources = ["knowledge_items", "findings"]
+        active_investigators = active_investigators[:limit]
+        searched_sources = ["knowledge_items", "findings", "chat_sessions"]
         if ranked:
             message = (
-                f"Among the sources searched, {ranked[0]['display_name']} has the strongest "
-                "demonstrated experience for the requested topic. This is an evidence-backed ranking, "
-                "not a definitive organizational title."
+                f"Highest evidence score among the sources searched: "
+                f"{ranked[0]['display_name']}. The score ranks source-linked work; it does not "
+                "establish an organizational role or general expertise."
+            )
+        elif active_investigators:
+            message = (
+                f"No qualifying demonstrated-experience evidence for {topic} was retrieved from "
+                "knowledge_items or findings. Named relevant session activity was retrieved from "
+                "chat_sessions; session activity is not expertise evidence."
             )
         else:
             message = (
-                f"No demonstrated expertise evidence for {topic} was found in "
-                "knowledge_items or findings. This describes only the sources searched."
+                f"No qualifying demonstrated-experience evidence for {topic} was retrieved from "
+                "knowledge_items or findings. This statement is limited to the sources searched."
             )
         return {
             "topic": topic,
@@ -1057,10 +1320,18 @@ class BreadcrumbsStore:
                 "session_cap": "maximum evidence score per person per source session",
                 "independent_session_bonus": "0.1 per additional session, capped at 0.3",
                 "source_diversity_bonus": "0.05 for both knowledge and finding authorship",
+                "investigation_activity_bonus": (
+                    "0.1 times relevant investigation score for people who already have primary "
+                    "evidence, capped at 0.3"
+                ),
+                "investigation_session_cap": "three relevant sessions per person",
+                "minimum_finding_field_coverage": MIN_EXPERTISE_FINDING_COVERAGE,
+                "explicit_disease_scope": "exclude findings from other or unspecified diseases",
                 "score_is_probability": False,
             },
             "message": message,
             "experts": ranked,
+            "active_investigators": active_investigators,
         }
 
     @staticmethod
