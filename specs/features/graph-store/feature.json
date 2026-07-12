@@ -86,7 +86,10 @@
           { "name": "timestamp", "type": "text" },
           { "name": "provenance", "type": "text" },
           { "name": "reason", "type": "text" },
-          { "name": "source_session_id", "type": "text" }
+          { "name": "source_session_id", "type": "text" },
+          { "name": "source_type", "type": "text" },
+          { "name": "markdown", "type": "text" },
+          { "name": "resources", "type": "text" }
         ]
       },
       {
