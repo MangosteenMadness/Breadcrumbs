@@ -103,6 +103,34 @@ def message_from_dict(item: dict[str, Any]) -> dict[str, Any] | None:
     return {"role": role, "content": content, "created_at": str(created_at) if created_at else None}
 
 
+HEAVY_BLOCK_BYTES = 50_000
+
+
+def slim_raw_payload(payload: Any) -> Any:
+    """Drop multi-megabyte rendering blobs from the raw payload kept for provenance.
+
+    K Pro embeds each plot's full render (per-cell spatial coordinates, base64 image data) in
+    the message, so one answer's raw JSON can run to tens of MB — none of which the ingestion
+    reads, since only `text` blocks become transcript content. breadcrumbs.db is committed and
+    shared, so persisting those blobs would bloat the repo by ~70 MB for no analytical value.
+    Any non-text block whose content is larger than HEAVY_BLOCK_BYTES has its content replaced
+    with a compact stub that still records that a plot/table of that size was present. All text
+    and all structure are kept verbatim.
+    """
+    if isinstance(payload, dict):
+        block_type = payload.get("type")
+        if block_type and block_type != "text" and "content" in payload:
+            serialized = len(json.dumps(payload["content"], ensure_ascii=False, default=str))
+            if serialized > HEAVY_BLOCK_BYTES:
+                slim = {k: v for k, v in payload.items() if k != "content"}
+                slim["content"] = {"_stripped": block_type, "_original_bytes": serialized}
+                return slim
+        return {key: slim_raw_payload(value) for key, value in payload.items()}
+    if isinstance(payload, list):
+        return [slim_raw_payload(item) for item in payload]
+    return payload
+
+
 def walk(value: Any) -> Iterable[Any]:
     yield value
     if isinstance(value, dict):
@@ -423,7 +451,7 @@ def ingest_one(
         session_id=session_id,
         url=url,
         title=resolved_title,
-        raw_payload=payload,
+        raw_payload=slim_raw_payload(payload),
         messages=messages,
         updated_at=updated_at,
     )
@@ -457,7 +485,7 @@ def main() -> None:
                 messages = extract_messages(payload)
                 if messages:
                     url = f"file://{args.from_file}#{identifier}"
-                    upsert_session(connection, session_id=identifier, url=url, title=None, raw_payload=payload, messages=messages)
+                    upsert_session(connection, session_id=identifier, url=url, title=None, raw_payload=slim_raw_payload(payload), messages=messages)
                     print(f"Ingested {identifier}: {len(messages)} turns")
                 else:
                     record_error(connection, identifier, str(args.from_file), "No role-labelled user/assistant turns found in file")

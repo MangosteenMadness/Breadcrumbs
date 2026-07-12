@@ -14,3 +14,4 @@
 | BC-GRAPH-004 | K Pro chat provenance tables and ingestion | built-at-parity |
 | BC-GRAPH-005 | Reviewed-write path — validation as the human-confirm gate | built-at-parity |
 | BC-GRAPH-006 | Schema migration — CHECK-constraint table rebuild | not-built |
+| BC-GRAPH-007 | Dataset catalog — K Pro Explore Data table/column metadata | gap |
