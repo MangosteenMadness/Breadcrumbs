@@ -237,27 +237,62 @@ def rendered_messages(page) -> list[dict[str, Any]]:
     return []
 
 
-def bearer_token(page) -> str | None:
-    """Read the OIDC access token the K Pro SPA stores in localStorage.
-
-    K Pro's API is not cookie-authenticated — /api/chats returns 401 on cookies alone. The
-    app attaches `Authorization: Bearer <access_token>`, which oidc-client keeps under an
-    `oidc.user:<issuer>:<client>` key. The token is short-lived (minutes) and the SPA renews
-    it while the page is open, so this is re-read per request rather than cached.
-    """
+def stored_token(page) -> tuple[str | None, int | None]:
+    """Read the OIDC access token and its expiry from the SPA's localStorage."""
     try:
         entries = page.evaluate("() => Object.fromEntries(Object.entries(localStorage))")
     except Exception:
-        return None
+        return None, None
     for key, value in (entries or {}).items():
         if not key.startswith("oidc.user:"):
             continue
         try:
-            token = json.loads(value).get("access_token")
+            record = json.loads(value)
         except Exception:
             continue
+        token = record.get("access_token")
         if isinstance(token, str) and token:
+            return token, record.get("expires_at")
+    return None, None
+
+
+def bearer_token(page, timeout_ms: int = 60_000) -> str | None:
+    """Return a non-expired K Pro access token, waiting for the SPA to renew if needed.
+
+    K Pro's API is not cookie-authenticated — /api/chats returns 401 on cookies alone; the app
+    sends `Authorization: Bearer <access_token>`, which oidc-client keeps under an
+    `oidc.user:<issuer>:<client>` key. That token lives only ~15 minutes, so the one inside a
+    saved storage_state is almost always stale by the time we run. The SPA silently renews it
+    a few seconds after the page loads, so poll until the stored token is actually in date
+    rather than firing a request that would come back "Signature has expired".
+    """
+    deadline = time.monotonic() + timeout_ms / 1000
+    while True:
+        token, expires_at = stored_token(page)
+        if token and (not isinstance(expires_at, int) or expires_at > time.time() + 30):
             return token
+        if time.monotonic() >= deadline:
+            return token  # Expired or unknown; let the caller surface the API's own error.
+        page.wait_for_timeout(2_000)
+
+
+def api_json(context, page, url: str, timeout_ms: int = 90_000) -> Any | None:
+    """GET a K Pro API endpoint with a bearer token, renewing once if it is rejected."""
+    for attempt in range(2):
+        token = bearer_token(page)
+        if not token:
+            return None
+        response = context.request.get(
+            url, headers={"Authorization": f"Bearer {token}"}, timeout=timeout_ms
+        )
+        if response.ok:
+            try:
+                return response.json()
+            except Exception:
+                return None
+        if response.status not in (401, 403) or attempt:
+            return None
+        page.wait_for_timeout(3_000)  # Token rejected — give the SPA a beat to renew, then retry.
     return None
 
 
@@ -272,17 +307,11 @@ def list_chats(context, page, base_url: str, limit: int) -> list[dict[str, Any]]
     chats: list[dict[str, Any]] = []
     page_number = 1
     while len(chats) < limit:
-        token = bearer_token(page)
-        if not token:
-            break
-        response = context.request.get(
-            f"{base_url}/api/chats?search=&page_size={page_size}&page={page_number}",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=60_000,
+        body = api_json(
+            context, page, f"{base_url}/api/chats?search=&page_size={page_size}&page={page_number}"
         )
-        if not response.ok:
+        if not isinstance(body, dict):
             break
-        body = response.json()
         batch = body.get("chats") or []
         if not batch:
             break
@@ -351,22 +380,44 @@ def load_from_file(path: Path) -> list[tuple[str, Any]]:
     return results
 
 
-def ingest_one(page, connection, url: str, *, title: str | None = None, updated_at: str | None = None) -> bool:
+def ingest_one(
+    context,
+    page,
+    connection,
+    base_url: str,
+    url: str,
+    *,
+    title: str | None = None,
+    updated_at: str | None = None,
+) -> bool:
     session_id = chat_id(url)
     if not session_id:
         record_error(connection, None, url, "URL does not contain a K Pro chat UUID")
         return False
-    payloads = capture_page_payloads(page, url, session_id)
-    payload = payload_for_chat(payloads, session_id)
+
+    # API first: /api/chats/<id>/messages returns the chat verbatim. It is faster than
+    # rendering the page, it cannot pick up another chat's payload, and it reaches chats the
+    # UI declines to render (a chat created by a colleague shows a "Created by" placeholder
+    # in the browser but still serves its messages over the API).
+    payload = api_json(context, page, f"{base_url}/api/chats/{session_id}/messages")
     messages = extract_messages(payload) if payload is not None else []
+    payloads: list[CapturedPayload] = []
+    if not messages:
+        payloads = capture_page_payloads(page, url, session_id)
+        payload = payload_for_chat(payloads, session_id)
+        messages = extract_messages(payload) if payload is not None else []
     if not messages:
         messages = rendered_messages(page)
     if not messages:
         record_error(connection, session_id, url, "No role-labelled user/assistant turns found")
         return False
-    # The chat list is the authoritative source of a chat's name; fall back to the chat's
-    # own payload only when ingesting a bare URL outside a --recent run.
+    # The chat list is the authoritative source of a chat's name. When ingesting a bare URL
+    # outside a --recent run there is no list, so ask the chat's own metadata endpoint.
     resolved_title = title or find_title(payloads, session_id)
+    if not resolved_title:
+        metadata = api_json(context, page, f"{base_url}/api/chats/{session_id}")
+        if isinstance(metadata, dict):
+            resolved_title = clean_text(metadata.get("name"))
     upsert_session(
         connection,
         session_id=session_id,
@@ -418,10 +469,13 @@ def main() -> None:
             context = browser.new_context(storage_state=str(STATE_PATH))
             page = context.new_page()
 
+            # The API needs a bearer token that only the running SPA can mint, so a page must
+            # be open before any request — including when ingesting explicit URLs.
+            page.goto(base_url, wait_until="domcontentloaded", timeout=60_000)
+            page.wait_for_timeout(3_000)
+
             targets: dict[str, dict[str, Any]] = {}
             if args.recent:
-                page.goto(base_url, wait_until="domcontentloaded", timeout=60_000)
-                page.wait_for_timeout(3_000)
                 discovered = list_chats(context, page, base_url, args.limit)
                 if not discovered:
                     raise SystemExit(
@@ -455,7 +509,15 @@ def main() -> None:
                     continue
                 url = urljoin(base_url, f"/chat/{identifier}")
                 try:
-                    if ingest_one(page, connection, url, title=chat.get("title"), updated_at=revision):
+                    if ingest_one(
+                        context,
+                        page,
+                        connection,
+                        base_url,
+                        url,
+                        title=chat.get("title"),
+                        updated_at=revision,
+                    ):
                         ingested += 1
                     else:
                         failed += 1
