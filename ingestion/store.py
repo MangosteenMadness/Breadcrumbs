@@ -36,6 +36,9 @@ def _migrate_findings(connection: sqlite3.Connection) -> None:
         "category": "TEXT",
         "entities": "TEXT",
         "source_session_id": "TEXT",
+        "source_type": "TEXT",
+        "markdown": "TEXT",
+        "resources": "TEXT",
     }
     for name, definition in additions.items():
         if name not in existing:
