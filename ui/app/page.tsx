@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Markdown from "react-markdown";
 import {
   F,
   E,
@@ -304,6 +305,19 @@ function ThinkBlock({ item }: { item: Extract<StreamItem, { kind: "think" }> }) 
 
 /* ---------------- answer block ---------------- */
 function AnswerBlock({ res }: { res: DuplicationResult }) {
+  // When the backend sends a markdown write-up, render it as the answer body.
+  if (res.markdown) {
+    return (
+      <div className="msg">
+        <div className="ans">
+          <div className="md">
+            <Markdown>{res.markdown}</Markdown>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const open = res.verdict === "open" || !res.matches?.length;
 
   if (open) {

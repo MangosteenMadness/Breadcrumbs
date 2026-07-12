@@ -1,4 +1,4 @@
-# Cairn — Sample Demo Conversations
+# Breadcrumbs — Sample Demo Conversations
 
 Source: `References/Breadcrumbs.pdf` (Demo Script). These are the literal chat turns for
 rehearsal / to drive a thin chat UI, with the `{{ }}` slots left for Builder 1 to fill from the real
@@ -19,7 +19,7 @@ says "this is novel" — only "no prior internal work found" / "published record
 **Researcher (chat):**
 > In lung adenocarcinoma, is high cytotoxic T-cell infiltration associated with better overall survival?
 
-**Cairn agent:**
+**Breadcrumbs agent:**
 > Ran a high-vs-low split on a cytotoxic signature (CD8A, GZMB, PRF1, GZMK) across TCGA LUAD.
 >
 > **Result:** high-infiltration patients (n={{N_HIGH}}) showed better overall survival than low
@@ -42,7 +42,7 @@ says "this is novel" — only "no prior internal work found" / "published record
 **Researcher (chat, deliberately different wording):**
 > Does immune infiltration predict prognosis in lung cancer?
 
-**Cairn agent:**
+**Breadcrumbs agent:**
 > Before you run this — a related question has already been explored in your org.
 >
 > **Internal match (finding #F-118):** Researcher A tested whether a cytotoxic T-cell signature

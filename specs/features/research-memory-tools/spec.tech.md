@@ -3,7 +3,7 @@ id: research-memory-tools-tech
 title: "Research Memory Tools — technical reference"
 type: spec
 status: draft
-domain: cairn
+domain: breadcrumbs
 audience: engineers, Breadcrumbs team
 parity_of: ./components.md
 registry: ./components.md
@@ -36,7 +36,7 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **Behavior:** A Python MCP server exposing the five tools below, connected to Claude Desktop as the
   host (the host stands in for K Pro in the demo). Opens the graph store read-write and surfaces
   errors rather than failing silently mid-demo.
-- **Data:** reads/writes `ingestion/cairn.db` through the existing store module.
+- **Data:** reads/writes `ingestion/breadcrumbs.db` through the existing store module.
 - **Source:** not-built.
 - **Status:** not-built.
 - **REQ-001:** The server starts, registers all five tools, and Claude Desktop lists them.

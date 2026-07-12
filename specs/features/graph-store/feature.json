@@ -47,7 +47,7 @@
     },
     {
       "id": "REQ-006",
-      "text": "The migration is idempotent and non-destructive: running it twice against the tracked cairn.db leaves row counts unchanged and does not cascade-delete edges.",
+      "text": "The migration is idempotent and non-destructive: running it twice against the tracked breadcrumbs.db leaves row counts unchanged and does not cascade-delete edges.",
       "coverage": "automated_check",
       "command": "python -m pytest tests/test_migration.py -k idempotent"
     },

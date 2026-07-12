@@ -58,9 +58,62 @@ function toMatch(f: Finding, rel: Relationship): Match {
  * Resolve a question from the seeded graph.
  * @param forcedId mock-only deterministic hint (canned questions); ignored by the real MCP.
  */
+const STATUS_LABEL: Record<string, string> = {
+  abandoned: "⚑ dead end",
+  in_progress: "◉ in progress",
+  confirmed: "already explored",
+};
+
+/** Build a wiki-style markdown write-up from a resolved result. */
+function buildMarkdown(question: string, matches: Match[]): string {
+  const n = matches.length;
+  const lines: string[] = [];
+  lines.push(`## Retrace — you're not the first here`);
+  lines.push("");
+  lines.push(
+    `**${n} marker${n > 1 ? "s" : ""}** on your org's trail match _${question.trim()}_.`,
+  );
+  lines.push("");
+  matches.forEach((m) => {
+    lines.push(`### ${m.id} · ${STATUS_LABEL[m.status] || m.status}`);
+    lines.push(`- **Question:** ${m.hypothesis_text}`);
+    lines.push(`- **Who:** ${m.author}${m.disease ? ` · ${m.disease}` : ""}`);
+    if (m.effect) lines.push(`- **Finding:** ${m.effect}`);
+    if (m.reason) lines.push(`- **Why it was dropped:** ${m.reason}`);
+    lines.push("");
+  });
+  lines.push("---");
+  lines.push(`#### Published record`);
+  lines.push(
+    `Related literature exists on this topic. What's above is _internal_ — work inside your org that no published search could surface.`,
+  );
+  lines.push("");
+  lines.push(
+    `_Internal trail checked first · ${F.length} markers searched · published record checked second._`,
+  );
+  lines.push("");
+  lines.push(
+    `_No claim of novelty — Breadcrumbs reports what it found on your trail, and what it didn't._`,
+  );
+  return lines.join("\n");
+}
+
 export function mockCheckDuplication(question: string, forcedId?: string): DuplicationResult {
   const hitId = forcedId || route(question);
-  if (!hitId) return { verdict: "open", matches: [], searched: F.length };
+  if (!hitId) {
+    return {
+      verdict: "open",
+      matches: [],
+      searched: F.length,
+      markdown: [
+        `## Open trail — you're the first here`,
+        "",
+        `Nothing on your org's trail matches _${question.trim()}_, and nothing in the published record searched.`,
+        "",
+        `As you explore it, Breadcrumbs drops a marker — so the next person who asks finds **you**.`,
+      ].join("\n"),
+    };
+  }
 
   const hit = byId[hitId];
   const nb = neighborsOf(hitId);
@@ -81,5 +134,6 @@ export function mockCheckDuplication(question: string, forcedId?: string): Dupli
     external:
       "Related literature exists on this topic. What's above is <em>internal</em> — work inside your org that no published search could surface.",
     searched: F.length,
+    markdown: buildMarkdown(question, matches),
   };
 }

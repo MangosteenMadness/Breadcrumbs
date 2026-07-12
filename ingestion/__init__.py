@@ -1,1 +1,1 @@
-"""Local ingestion tools for Cairn's K Pro research-memory store."""
+"""Local ingestion tools for Breadcrumbs' K Pro research-memory store."""

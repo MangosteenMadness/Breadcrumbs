@@ -3,7 +3,7 @@ id: graph-store-tech
 title: "Graph Store — technical reference"
 type: spec
 status: draft
-domain: cairn
+domain: breadcrumbs
 audience: engineers, Breadcrumbs team
 parity_of: ./components.md
 registry: ./components.md
@@ -90,7 +90,7 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **Why this is not a one-line edit:** `ingestion/store.py:26` runs `executescript(graph_schema.sql)`
   on *every* connect, and every statement is `CREATE TABLE IF NOT EXISTS`. **Editing the CHECK
   constraints in `graph_schema.sql` therefore has no effect on the already-committed
-  `ingestion/cairn.db`** — the one database that matters. SQLite cannot `ALTER` a CHECK constraint,
+  `ingestion/breadcrumbs.db`** — the one database that matters. SQLite cannot `ALTER` a CHECK constraint,
   so this needs a table rebuild:
   `PRAGMA foreign_keys = OFF` (outside the transaction — `finding_edges` declares
   `ON DELETE CASCADE` onto `findings`, so dropping the old table with foreign keys still on would
@@ -102,4 +102,4 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
   `executescript` *before* the migration ever inspected it, marking old databases as already done.
 - **Status:** not-built.
 - **REQ-006:** The migration is idempotent — it runs twice with the same result — and row counts in
-  `cairn.db` are unchanged afterwards.
+  `breadcrumbs.db` are unchanged afterwards.

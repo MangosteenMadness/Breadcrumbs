@@ -36,8 +36,8 @@
       "title": "Migrating the committed database preserves every row and edge",
       "kind": "edge_case",
       "mode": "public",
-      "description": "ingestion/cairn.db is committed and shared by the team. The CHECK-constraint rebuild drops and recreates the findings table, and finding_edges cascades on delete — so a careless migration silently destroys the graph. Run it twice; nothing may change the second time.",
-      "preconditions": ["A copy of the committed ingestion/cairn.db with at least one session, finding, and edge"],
+      "description": "ingestion/breadcrumbs.db is committed and shared by the team. The CHECK-constraint rebuild drops and recreates the findings table, and finding_edges cascades on delete — so a careless migration silently destroys the graph. Run it twice; nothing may change the second time.",
+      "preconditions": ["A copy of the committed ingestion/breadcrumbs.db with at least one session, finding, and edge"],
       "steps": [
         "Record row counts for chat_messages, findings, and finding_edges",
         "Run the migration",

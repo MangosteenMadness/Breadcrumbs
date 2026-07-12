@@ -1,4 +1,4 @@
--- Cairn graph store: findings as nodes (SQLite, lightest-path per Breadcrumbs.pdf)
+-- Breadcrumbs graph store: findings as nodes (SQLite, lightest-path per Breadcrumbs.pdf)
 -- status: confirmed | in-progress | abandoned
 
 -- A controlled registry prevents topic pages from fragmenting through free-text
@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     url         TEXT NOT NULL,
     title       TEXT,
     scraped_at  TEXT NOT NULL,
-    raw_json    TEXT
+    raw_json    TEXT,
+    updated_at  TEXT           -- K Pro's own last-update stamp; drives incremental re-ingest
 );
 
 CREATE TABLE IF NOT EXISTS chat_messages (
@@ -66,17 +67,27 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_session
 
 -- Visible Markdown sections emitted by K Pro (for example, ## Population
 -- Overview) are graph-ready categories derived without sending text externally.
+-- Sections nest: a level-3 heading belongs to the level-2 heading above it (a
+-- per-indication breakdown under "Indication-Specific Summary"). parent_id
+-- records that edge so topics form a tree rather than a flat list, and path
+-- carries the readable "Parent > Child" label for topic nodes.
 CREATE TABLE IF NOT EXISTS chat_message_sections (
     id          TEXT PRIMARY KEY,
     message_id  TEXT NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
     seq         INTEGER NOT NULL,
     heading     TEXT NOT NULL,
     level       INTEGER NOT NULL CHECK (level IN (2, 3)),
-    content     TEXT NOT NULL
+    content     TEXT NOT NULL,
+    parent_id   TEXT REFERENCES chat_message_sections(id) ON DELETE CASCADE,
+    path        TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_message_sections_message
     ON chat_message_sections(message_id, seq);
+
+-- The parent_id index is created by store._migrate_chat_tables, not here: on a pre-existing
+-- breadcrumbs.db the CREATE TABLE above is a no-op, so parent_id does not exist yet at this point
+-- and indexing it would fail. The migration adds the column first, then the index.
 
 -- A failed page/API shape is recorded locally so unsupported K Pro UI changes are
 -- visible without storing fabricated turns.
