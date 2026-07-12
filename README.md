@@ -45,10 +45,52 @@ own schemas and templates, and the validator is a Python port so this stays a No
   (`example_finding_extraction.json`).
 - **`demo/`** — sample Session 1 / Session 2 conversation transcripts matching the pitch's
   demo script, for rehearsal or driving a thin chat UI.
+- **`src/breadcrumbs/`** — the MCP server exposing the shared SQLite findings graph to agents.
 - **`ui/`** — the Breadcrumbs demo surface: a Next.js chat UI (sidebar history, retrace chat,
   live trail graph). Runs standalone on a seeded mock, and points at the real backend via one
   env var. See [`ui/README.md`](ui/README.md).
 - **`scripts/`** — `setupref_validate.py`, the spec-tree gate.
+
+## Breadcrumbs MCP server
+
+The MCP server is a thin adapter over the same `ingestion/breadcrumbs.db` used by the ingestion
+pipeline. It does not create a second database or schema. It exposes five tools:
+
+- `check_duplication(hypothesis_text, limit)` searches the internal findings graph and reports only
+  what was found there. General literature research remains the host agent's responsibility.
+- `write_finding(record)` validates and inserts one reviewed finding using the shared gate in
+  `ingestion/write_findings.py`.
+- `recall_findings(query, limit)` returns locally matched internal findings and graph edges.
+- `render_wiki(finding_ids, title)` generates a cited, read-only Markdown view of the graph.
+- `read(column, value)` performs an allowlisted exact query for callers that already know a stored
+  field and canonical value.
+
+Install and run over stdio:
+
+```bash
+uv sync
+.venv/bin/breadcrumbs-mcp
+```
+
+Run over Streamable HTTP:
+
+```bash
+BREADCRUMBS_TRANSPORT=http .venv/bin/breadcrumbs-mcp
+```
+
+The HTTP MCP endpoint is `http://127.0.0.1:8000/mcp`; health is available at `/health`.
+Set `BREADCRUMBS_DB` to override the default `ingestion/breadcrumbs.db` path.
+
+The MCP accepts `created_at` and `source_session` as read aliases for the physical
+`timestamp` and `source_session_id` columns. Writes use the reviewed extraction shape in
+`schema/example_finding_extraction.json`; `id` and `created_at` are optional. The checked public
+contract is generated at `schema/mcp_contracts.schema.json`, and the UI-compatible HTTP seam is
+`POST http://127.0.0.1:8000/check_duplication`.
+
+The server publishes initialization and tool guidance telling agents when to read and write,
+how to summarize confirmed/in-progress/abandoned work, and how to avoid novelty or causality
+overclaims. For proactive use in Claude, upload the intent-named skill under
+`skills/check-internal-biomedical-research-memory/`.
 
 ## Get the chat ingestor running
 

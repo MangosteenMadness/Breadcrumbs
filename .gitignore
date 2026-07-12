@@ -38,6 +38,12 @@ ingestion/*.db-wal
 # Python
 __pycache__/
 *.pyc
+.venv/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+.breadcrumbs/
 
 # GitKB: store/ is the canonical, shareable KB data - tracked intentionally so the
 # team gets it via `git pull` without each running `git-kb init`. Only the derived,
