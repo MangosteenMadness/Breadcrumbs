@@ -417,6 +417,7 @@ def ingest_one(
     *,
     title: str | None = None,
     updated_at: str | None = None,
+    researcher: str | None = None,
 ) -> bool:
     session_id = chat_id(url)
     if not session_id:
@@ -454,6 +455,7 @@ def ingest_one(
         raw_payload=slim_raw_payload(payload),
         messages=messages,
         updated_at=updated_at,
+        researcher=researcher,
     )
     label = f" — {resolved_title[:60]}" if resolved_title else ""
     print(f"Ingested {session_id}: {len(messages)} turns{label}")
@@ -472,12 +474,20 @@ def main() -> None:
         action="store_true",
         help="Re-ingest chats already stored and unchanged since the last run (default: skip them)",
     )
+    parser.add_argument(
+        "--author",
+        help="Researcher running this ingest, stored on the session and shown in its transcript "
+        "(K Pro's payload carries no per-message identity, so this must be supplied). "
+        "Defaults to the KPRO_RESEARCHER env var. Omitting it on a re-ingest keeps the value "
+        "already stored.",
+    )
     args = parser.parse_args()
     if not args.urls and not args.recent and not args.from_file:
         parser.error("provide a chat URL/UUID, --recent, or --from-file")
 
     load_dotenv(ROOT / ".env")
     base_url = os.getenv("KPRO_BASE_URL", "https://k.owkin.com").rstrip("/")
+    researcher = args.author or os.getenv("KPRO_RESEARCHER")
     connection = connect(args.db)
     try:
         if args.from_file:
@@ -485,7 +495,15 @@ def main() -> None:
                 messages = extract_messages(payload)
                 if messages:
                     url = f"file://{args.from_file}#{identifier}"
-                    upsert_session(connection, session_id=identifier, url=url, title=None, raw_payload=slim_raw_payload(payload), messages=messages)
+                    upsert_session(
+                        connection,
+                        session_id=identifier,
+                        url=url,
+                        title=None,
+                        raw_payload=slim_raw_payload(payload),
+                        messages=messages,
+                        researcher=researcher,
+                    )
                     print(f"Ingested {identifier}: {len(messages)} turns")
                 else:
                     record_error(connection, identifier, str(args.from_file), "No role-labelled user/assistant turns found in file")
@@ -545,6 +563,7 @@ def main() -> None:
                         url,
                         title=chat.get("title"),
                         updated_at=revision,
+                        researcher=researcher,
                     ):
                         ingested += 1
                     else:

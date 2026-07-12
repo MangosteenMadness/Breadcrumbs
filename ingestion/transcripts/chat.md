@@ -2,10 +2,10 @@
 
 Source: https://example.test/chat/chat
 
-## Researcher
+## Researcher (turn 0)
 
 new
 
-## K Pro
+## K Pro (turn 1)
 
 answer

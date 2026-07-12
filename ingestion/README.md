@@ -56,6 +56,13 @@ stopped and picks up new or changed chats. Pass `--force` to re-ingest everythin
 Each chat is stored under its own UUID, so chats never overwrite one another; re-ingesting the
 same chat refreshes just that chat's turns.
 
+Pass `--author "Your Name"` (or set `KPRO_RESEARCHER` in `.env`) to record who ran the ingest.
+K Pro's own payload never says who a chat's human side is — only a `role` of user/assistant — so
+this has to come from you. It's stored on the session and shown at the top of its `.md`
+transcript; omitting `--author` on a later re-ingest keeps whatever was already recorded rather
+than clearing it. Each turn's `.md` heading also shows its `seq` and, when K Pro supplied one,
+its timestamp — e.g. `## Researcher (turn 0 · 2026-01-01T00:00:00Z)`.
+
 To ingest a **colleague's** chats, run `capture_session.py` and have them complete SSO in the
 browser window, then run `ingest_chat.py --recent` — it ingests whichever account's session is
 currently saved in `.secrets/`.
@@ -73,6 +80,26 @@ sqlite3 ingestion/breadcrumbs.db "SELECT session_id, seq, role, substr(content,1
 ```
 
 Use this local raw-chat store as the source for a later graph/entity extraction step.
+
+## Export sessions for the UI
+
+`export_sessions.py` writes the ingested chats — including their captured Plotly figures and
+datatables — to `ui/lib/sessions.json`, the static file the Breadcrumbs UI bundles and replays.
+K Pro hands us each plot as a raw Plotly figure object during ingest; rendering that stored
+object with Plotly.js in the browser redraws the exact chart K Pro drew, with no auth and no
+live network call to stall mid-demo.
+
+```powershell
+python ingestion/export_sessions.py
+```
+
+Each session becomes an ordered list of turns, each an ordered list of blocks (answer text, a
+plot, a datatable, or an `omitted` placeholder for a heavy plot that `slim_raw_payload` stripped
+at ingest to keep the committed DB small). Block order is preserved verbatim, so charts and
+tables interleave with the answer text exactly as K Pro laid them out. The two distinct Plotly
+templates K Pro reuses across every figure are hoisted into a shared table and referenced by
+index, which keeps the exported JSON small. Re-run this after any `ingest_chat.py` run so the UI
+reflects the latest chats.
 
 ## Write reviewed graph findings
 

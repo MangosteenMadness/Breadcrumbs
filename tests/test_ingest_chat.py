@@ -11,7 +11,7 @@ from ingestion.ingest_chat import (
     payload_for_chat,
     slim_raw_payload,
 )
-from ingestion.store import connect, extract_sections, ingested_revisions, upsert_session
+from ingestion.store import TRANSCRIPTS_DIR, connect, extract_sections, ingested_revisions, upsert_session
 from ingestion.write_findings import write_payload
 
 
@@ -113,6 +113,51 @@ class IngestionTests(unittest.TestCase):
                            updated_at="2026-07-11T23:42:18Z")
             self.assertEqual(ingested_revisions(connection), {"chat": "2026-07-11T23:42:18Z"})
             connection.close()
+
+    def test_transcript_includes_turn_seq_timestamp_and_researcher(self):
+        with tempfile.TemporaryDirectory() as directory:
+            connection = connect(Path(directory) / "breadcrumbs.db")
+            session_id = "transcript-meta-test"
+            path = TRANSCRIPTS_DIR / f"{session_id}.md"
+            try:
+                upsert_session(
+                    connection, session_id=session_id, url="https://example.test/chat/transcript-meta-test",
+                    title="Meta test", raw_payload={}, messages=[
+                        {"seq": 0, "role": "user", "content": "q", "created_at": "2026-01-01T00:00:00Z"},
+                        {"seq": 1, "role": "assistant", "content": "a"},
+                    ], researcher="Aisha",
+                )
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("Researcher: Aisha", text)
+                self.assertIn("## Researcher (turn 0 · 2026-01-01T00:00:00Z)", text)
+                self.assertIn("## K Pro (turn 1)", text)
+            finally:
+                connection.close()
+                path.unlink(missing_ok=True)
+
+    def test_researcher_persists_across_reingest_when_omitted(self):
+        # A --recent re-run that forgets --author must not blank out who ran the original ingest.
+        with tempfile.TemporaryDirectory() as directory:
+            connection = connect(Path(directory) / "breadcrumbs.db")
+            session_id = "transcript-persist-test"
+            path = TRANSCRIPTS_DIR / f"{session_id}.md"
+            try:
+                upsert_session(connection, session_id=session_id, url="https://example.test/chat/transcript-persist-test",
+                                title=None, raw_payload={}, messages=[{"seq": 0, "role": "user", "content": "first"}],
+                                researcher="Aisha")
+                upsert_session(connection, session_id=session_id, url="https://example.test/chat/transcript-persist-test",
+                                title=None, raw_payload={}, messages=[
+                                    {"seq": 0, "role": "user", "content": "first"},
+                                    {"seq": 1, "role": "assistant", "content": "second"},
+                                ])
+                self.assertEqual(
+                    connection.execute("SELECT researcher FROM chat_sessions WHERE id = ?", (session_id,)).fetchone()[0],
+                    "Aisha",
+                )
+                self.assertIn("Researcher: Aisha", path.read_text(encoding="utf-8"))
+            finally:
+                connection.close()
+                path.unlink(missing_ok=True)
 
     def test_ingesting_one_chat_does_not_disturb_another(self):
         with tempfile.TemporaryDirectory() as directory:

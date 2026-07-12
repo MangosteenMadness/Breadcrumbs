@@ -55,7 +55,7 @@ def _migrate_chat_tables(connection: sqlite3.Connection) -> None:
     table rebuild, so finding_edges' ON DELETE CASCADE is not at risk (see AGENTS.md).
     """
     additions = {
-        "chat_sessions": {"updated_at": "TEXT"},
+        "chat_sessions": {"updated_at": "TEXT", "researcher": "TEXT"},
         "chat_message_sections": {"parent_id": "TEXT", "path": "TEXT"},
     }
     for table, columns in additions.items():
@@ -85,12 +85,18 @@ def upsert_session(
     raw_payload: Any,
     messages: Iterable[dict[str, Any]],
     updated_at: str | None = None,
+    researcher: str | None = None,
 ) -> None:
     """Replace one session's turn set atomically, retaining its latest raw payload.
 
     Scoped to this session_id only — ingesting chat B never disturbs chat A. Re-ingesting
     the same chat replaces its turns, which is how a chat that gained new messages in K Pro
     is brought up to date.
+
+    `researcher` names who ran the ingest — K Pro's payload carries only a `role` of
+    user/assistant, never a person's identity, so this has to come from the caller (e.g. a
+    CLI flag), not from anything scraped. A re-ingest that omits it keeps whatever was
+    already stored rather than blanking it out.
     """
     scraped_at = utc_now()
     raw_json = json.dumps(raw_payload, ensure_ascii=False) if raw_payload is not None else None
@@ -98,16 +104,17 @@ def upsert_session(
     with connection:
         connection.execute(
             """
-            INSERT INTO chat_sessions(id, url, title, scraped_at, raw_json, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO chat_sessions(id, url, title, scraped_at, raw_json, updated_at, researcher)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 url = excluded.url,
                 title = excluded.title,
                 scraped_at = excluded.scraped_at,
                 raw_json = excluded.raw_json,
-                updated_at = excluded.updated_at
+                updated_at = excluded.updated_at,
+                researcher = COALESCE(excluded.researcher, chat_sessions.researcher)
             """,
-            (session_id, url, title, scraped_at, raw_json, updated_at),
+            (session_id, url, title, scraped_at, raw_json, updated_at, researcher),
         )
         connection.execute("DELETE FROM chat_messages WHERE session_id = ?", (session_id,))
         connection.executemany(
@@ -149,7 +156,10 @@ def upsert_session(
             """,
             sections,
         )
-    write_transcript(session_id, url, title, turns)
+    persisted_researcher = connection.execute(
+        "SELECT researcher FROM chat_sessions WHERE id = ?", (session_id,)
+    ).fetchone()["researcher"]
+    write_transcript(session_id, url, title, turns, researcher=persisted_researcher)
 
 
 def extract_sections(content: str) -> list[dict[str, Any]]:
@@ -198,14 +208,26 @@ def extract_sections(content: str) -> list[dict[str, Any]]:
     return sections
 
 
-def write_transcript(session_id: str, url: str, title: str | None, messages: Iterable[dict[str, Any]]) -> Path:
+def write_transcript(
+    session_id: str,
+    url: str,
+    title: str | None,
+    messages: Iterable[dict[str, Any]],
+    researcher: str | None = None,
+) -> Path:
     """Write a human-readable local view without replacing the canonical database."""
     TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
     heading = title or f"K Pro chat {session_id}"
-    sections = [f"# {heading}", "", f"Source: {url}", ""]
+    sections = [f"# {heading}", "", f"Source: {url}"]
+    if researcher:
+        sections.append(f"Researcher: {researcher}")
+    sections.append("")
     for message in messages:
         speaker = "Researcher" if message["role"] == "user" else "K Pro"
-        sections.extend((f"## {speaker}", "", message["content"].strip(), ""))
+        turn_meta = f"turn {message['seq']}"
+        if message.get("created_at"):
+            turn_meta += f" · {message['created_at']}"
+        sections.extend((f"## {speaker} ({turn_meta})", "", message["content"].strip(), ""))
     path = TRANSCRIPTS_DIR / f"{session_id}.md"
     path.write_text("\n".join(sections), encoding="utf-8")
     return path

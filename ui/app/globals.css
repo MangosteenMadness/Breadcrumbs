@@ -134,8 +134,88 @@ button{font-family:inherit}
 .stat b{display:block;font-family:var(--display);font-size:19px;color:var(--fog)}
 .stat span{font-family:var(--mono);font-size:9px;color:#8a9686}
 
+/* sidebar "replay a run" buttons — a hist row that is actually clickable */
+.histbtn{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;cursor:pointer;font-family:inherit}
+.histbtn:hover{background:var(--fog);border-color:var(--hair)}
+.histbtn .ht{font-weight:500}
+
+/* "view the actual run" affordance under an answer */
+.runlinks{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.runlink{display:flex;align-items:center;gap:9px;width:100%;text-align:left;cursor:pointer;
+  background:#FBF3E4;border:1px solid rgba(198,134,43,.35);border-radius:10px;
+  padding:9px 12px;font-size:13px;font-weight:500;color:var(--ink);transition:.14s}
+.runlink:hover{border-color:var(--crumb);background:#f8ecd4}
+.runlink-ic{color:var(--crumb);font-size:11px}
+.runlink-meta{margin-left:auto;font-size:10px;color:var(--moss)}
+
+/* ============ K Pro transcript modal ============ */
+.tk-overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  padding:32px;background:rgba(18,26,18,.55);backdrop-filter:blur(4px);animation:rise .2s ease both}
+.tk-modal{display:flex;flex-direction:column;width:100%;max-width:940px;max-height:90vh;
+  background:var(--fog);border-radius:16px;overflow:hidden;box-shadow:0 24px 70px rgba(18,26,18,.4)}
+.tk-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+  padding:18px 22px;background:var(--paper);border-bottom:1px solid var(--hair)}
+.tk-eyebrow{font-size:10px;color:var(--crumb);letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+.tk-title{font-size:18px;color:var(--ink);line-height:1.25}
+.tk-meta{font-size:10.5px;color:var(--moss);margin-top:6px}
+.tk-close{flex:none;border:1px solid var(--hair);background:var(--fog);color:var(--ink2);
+  width:32px;height:32px;border-radius:9px;cursor:pointer;font-size:13px;transition:.14s}
+.tk-close:hover{border-color:var(--moss);background:#fff}
+.tk-body{overflow-y:auto;padding:20px 22px 28px}
+.tk-body::-webkit-scrollbar{width:8px}
+.tk-body::-webkit-scrollbar-thumb{background:var(--mossl);border-radius:4px}
+
+.tk-turn{margin-bottom:22px}
+.tk-role{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--moss);margin-bottom:8px}
+.tk-user .tk-role{color:var(--crumb)}
+.tk-blocks{display:flex;flex-direction:column;gap:12px}
+.tk-user .tk-blocks{background:var(--ink);border-radius:4px 14px 14px 14px;padding:12px 16px;align-self:flex-start;max-width:80%}
+.tk-user .tk-blocks,.tk-user .tk-blocks *{color:var(--fog)}
+.tk-user .tk-blocks strong{color:#fff}
+
+.tk-md{font-size:14px;color:var(--ink2);line-height:1.6}
+.tk-md > :first-child{margin-top:0}
+.tk-md > :last-child{margin-bottom:0}
+.tk-md h2{font-family:var(--display);font-size:17px;color:var(--ink);margin:16px 0 8px}
+.tk-md h3{font-family:var(--display);font-size:15px;color:var(--ink);margin:14px 0 6px}
+.tk-md h4{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--moss);margin:10px 0 4px;font-weight:500}
+.tk-md p{margin:0 0 9px}
+.tk-md ul,.tk-md ol{margin:0 0 9px;padding-left:18px}
+.tk-md li{margin:2px 0}
+.tk-md strong{color:var(--ink);font-weight:600}
+.tk-md em{color:var(--moss);font-style:italic}
+.tk-md hr{border:none;border-top:1px dashed var(--hair);margin:12px 0}
+.tk-md a{color:var(--crumb)}
+.tk-md code{font-family:var(--mono);font-size:12.5px;background:var(--paper);padding:1px 5px;border-radius:5px}
+.tk-md table{border-collapse:collapse;margin:0 0 9px;font-size:12.5px}
+.tk-md th,.tk-md td{border:1px solid var(--hair);padding:5px 9px;text-align:left}
+.tk-md th{background:var(--paper);font-family:var(--mono);font-size:10.5px}
+
+.tk-plot,.tk-table-wrap{margin:0;background:#fff;border:1px solid var(--hair);border-radius:12px;padding:12px 14px}
+.tk-plot-cap{font-family:var(--mono);font-size:11px;color:var(--moss);letter-spacing:.03em;margin-bottom:8px}
+.tk-plot-canvas{width:100%;height:380px}
+
+.tk-table-scroll{overflow-x:auto}
+.tk-table{border-collapse:collapse;width:100%;font-size:12.5px}
+.tk-table th,.tk-table td{border:1px solid var(--hair);padding:6px 9px;text-align:left;vertical-align:top;white-space:pre-line}
+.tk-table th{background:var(--paper);font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--ink2);position:sticky;top:0}
+.tk-table tbody tr:nth-child(even){background:rgba(24,34,27,.03)}
+.tk-table-more{margin-top:10px;font-family:var(--mono);font-size:11px;letter-spacing:.03em;
+  color:var(--moss);background:var(--paper);border:1px solid var(--hair);border-radius:8px;
+  padding:5px 12px;cursor:pointer;transition:background .12s,color .12s}
+.tk-table-more:hover{background:var(--crumb);color:#fff;border-color:var(--crumb)}
+
+.tk-omit{display:flex;flex-direction:column;gap:3px;background:var(--paper);
+  border:1px dashed var(--mossl);border-radius:10px;padding:12px 14px}
+.tk-omit-tag{font-size:12.5px;color:var(--ink2);font-weight:500}
+.tk-omit-meta{font-size:10.5px;color:var(--moss)}
+
+.tk-suggest{display:inline-block;font-size:12.5px;color:var(--ink2);background:var(--paper);
+  border:1px solid var(--hair);border-radius:20px;padding:5px 13px;align-self:flex-start}
+
 @media(max-width:1100px){
   .app{grid-template-columns:1fr;height:auto}
   .col{height:auto;overflow:visible}
   .gcol{order:3}
+  .tk-overlay{padding:12px}
 }

@@ -129,7 +129,9 @@
           { "name": "url", "type": "text" },
           { "name": "title", "type": "text" },
           { "name": "scraped_at", "type": "text" },
-          { "name": "raw_json", "type": "text" }
+          { "name": "raw_json", "type": "text" },
+          { "name": "updated_at", "type": "text" },
+          { "name": "researcher", "type": "text" }
         ]
       },
       {

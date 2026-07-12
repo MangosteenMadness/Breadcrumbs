@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     title       TEXT,
     scraped_at  TEXT NOT NULL,
     raw_json    TEXT,
-    updated_at  TEXT           -- K Pro's own last-update stamp; drives incremental re-ingest
+    updated_at  TEXT,          -- K Pro's own last-update stamp; drives incremental re-ingest
+    researcher  TEXT           -- who ran the ingest (K Pro carries no per-message author identity)
 );
 
 CREATE TABLE IF NOT EXISTS chat_messages (
