@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from ingestion.store import connect
-from breadcrumbs.store import CairnStore
+from breadcrumbs.store import BreadcrumbsStore
 
 
 def finding(**changes):
@@ -20,15 +20,16 @@ def finding(**changes):
         "author": "Aisha Rahman",
         "created_at": "2027-01-02T03:04:05+00:00",
         "source_session_id": "sess-2027",
+        "source_type": "internal",
     }
     value.update(changes)
     return value
 
 
-class CairnStoreTests(unittest.TestCase):
+class BreadcrumbsStoreTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
-        self.path = Path(self.temp.name) / "cairn.db"
+        self.path = Path(self.temp.name) / "breadcrumbs.db"
         connection = connect(self.path)
         connection.execute(
             "INSERT INTO chat_sessions(id,url,title,scraped_at,raw_json) VALUES (?,?,?,?,?)",
@@ -36,7 +37,7 @@ class CairnStoreTests(unittest.TestCase):
         )
         connection.commit()
         connection.close()
-        self.store = CairnStore(self.path)
+        self.store = BreadcrumbsStore(self.path)
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -47,6 +48,8 @@ class CairnStoreTests(unittest.TestCase):
         rows = self.store.read("disease", "LUAD")
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["entities"], ["CD8A", "GZMB", "PRF1", "GZMK"])
+        self.assertEqual(rows[0]["source_type"], "internal")
+        self.assertEqual(rows[0]["resources"], [])
 
     def test_normalizes_entities_with_team_writer(self) -> None:
         written = self.store.write(finding(entities=["LKB1", "ajcc stage"]))

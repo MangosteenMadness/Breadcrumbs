@@ -51,9 +51,9 @@ own schemas and templates, and the validator is a Python port so this stays a No
   env var. See [`ui/README.md`](ui/README.md).
 - **`scripts/`** — `setupref_validate.py`, the spec-tree gate.
 
-## MCP server
+## Breadcrumbs MCP server
 
-The MCP server is a thin adapter over the same `ingestion/cairn.db` used by the ingestion
+The MCP server is a thin adapter over the same `ingestion/breadcrumbs.db` used by the ingestion
 pipeline. It does not create a second database or schema. It exposes two tools:
 
 - `write(record)` validates and inserts one reviewed finding using
@@ -75,17 +75,16 @@ BREADCRUMBS_TRANSPORT=http .venv/bin/breadcrumbs-mcp
 ```
 
 The HTTP MCP endpoint is `http://127.0.0.1:8000/mcp`; health is available at `/health`.
-Set `BREADCRUMBS_DB` to override the default `ingestion/cairn.db` path.
+Set `BREADCRUMBS_DB` to override the default `ingestion/breadcrumbs.db` path.
 
 The MCP accepts `created_at` and `source_session` as read aliases for the physical
 `timestamp` and `source_session_id` columns. Writes use the reviewed extraction shape in
 `schema/example_finding_extraction.json`; `id` and `created_at` are optional for MCP writes.
 
-The server also publishes workflow guidance to MCP clients. Its initialization instructions
-tell agents when to read and write, how to summarize confirmed/in-progress/abandoned work,
-and how to avoid novelty or causality overclaims. Tool and parameter descriptions document
-the exact read filters and write schema. Clients that expose MCP prompts can additionally use
-`cairn_research_memory_workflow(research_question)` for a guided check-and-summarize flow.
+The server publishes initialization and tool guidance telling agents when to read and write,
+how to summarize confirmed/in-progress/abandoned work, and how to avoid novelty or causality
+overclaims. For proactive use in Claude, upload the intent-named skill under
+`skills/check-internal-biomedical-research-memory/`.
 
 ## Get the chat ingestor running
 

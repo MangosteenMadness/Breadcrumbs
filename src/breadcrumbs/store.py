@@ -25,6 +25,9 @@ READABLE_COLUMNS = {
     "reason",
     "note",
     "source_session_id",
+    "source_type",
+    "markdown",
+    "resources",
 }
 COLUMN_ALIASES = {
     "created_at": "timestamp",
@@ -33,8 +36,8 @@ COLUMN_ALIASES = {
 Scalar = str | int | float | bool | None
 
 
-class CairnStore:
-    """MCP-facing adapter over the team's canonical Cairn SQLite graph store."""
+class BreadcrumbsStore:
+    """MCP-facing adapter over the team's canonical SQLite research-memory store."""
 
     def __init__(self, path: str | Path = DEFAULT_DB_PATH):
         self.path = Path(path)
@@ -81,4 +84,5 @@ class CairnStore:
     def _decode(row: sqlite3.Row) -> dict[str, Any]:
         item = dict(row)
         item["entities"] = json.loads(item["entities"]) if item.get("entities") else []
+        item["resources"] = json.loads(item["resources"]) if item.get("resources") else []
         return item

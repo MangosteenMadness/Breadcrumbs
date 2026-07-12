@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "breadcrumbs-mcp"
 version = "0.2.0"
-description = "MCP wrapper for the Cairn internal research-memory database"
+description = "Breadcrumbs MCP wrapper for the internal research-memory database"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

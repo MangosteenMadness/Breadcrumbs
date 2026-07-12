@@ -11,17 +11,17 @@ from pydantic import Field
 
 from ingestion.store import DEFAULT_DB_PATH
 
-from .store import CairnStore, Scalar
+from .store import BreadcrumbsStore, Scalar
 
 DB_PATH = Path(os.getenv("BREADCRUMBS_DB", str(DEFAULT_DB_PATH)))
-store = CairnStore(DB_PATH)
+store = BreadcrumbsStore(DB_PATH)
 
-CAIRN_INSTRUCTIONS = """
-Cairn is the organization's internal research-memory database. Use its tools directly;
+BREADCRUMBS_INSTRUCTIONS = """
+Breadcrumbs is the organization's internal research-memory database. Use its tools directly;
 do not stop after merely discovering or listing them.
 
 READING
-- Before starting related research, query Cairn for relevant prior work.
+- Before starting related research, query Breadcrumbs for relevant prior work.
 - Call read with exactly one allowed column and one exact scalar value. Useful columns
   include category, disease, status, author, and source_session_id. Make multiple read
   calls when more than one exact filter is useful; read is not semantic or fuzzy search.
@@ -42,18 +42,22 @@ WRITING
 - Call write only for a reviewed research finding supported by the conversation or source
   session. Write one finding per call and do not fabricate missing evidence.
 - Required record fields are category, disease, hypothesis_text, entities (array of strings),
-  effect, status, author, and source_session_id. The category must already be registered and
-  source_session_id must identify an ingested chat session.
+  effect, status, author, source_session_id, and source_type. The category must already be
+  registered and source_session_id must identify an ingested chat session. source_type must
+  be internal for organization-generated work or external for published evidence.
+- External findings require non-empty resources containing a paper or database citation.
+  Internal findings must not contain resources. markdown is optional for both source types.
 - status must be confirmed, in-progress, or abandoned. reason is required for abandoned
   findings and must be null or omitted for other statuses.
-- Optional fields are id, created_at, n, provenance, and note. Cairn supplies id and
-  created_at when omitted. Put methodological caveats and future guidance in note.
+- Optional fields are id, created_at, n, provenance, note, markdown, and resources where
+  allowed by source_type. Breadcrumbs supplies id and created_at when omitted. Put
+  methodological caveats and future guidance in note.
 - After writing, report the stored id and summarize exactly what was persisted.
 """.strip()
 
 mcp = FastMCP(
-    "Cairn Research Memory",
-    instructions=CAIRN_INSTRUCTIONS,
+    "Breadcrumbs — Internal Biomedical Research Memory",
+    instructions=BREADCRUMBS_INSTRUCTIONS,
     json_response=True,
     stateless_http=True,
     streamable_http_path="/",
@@ -67,9 +71,11 @@ def write(
         Field(
             description=(
                 "One reviewed finding. Required: category, disease, hypothesis_text, entities "
-                "(string array), effect, status, author, source_session_id. For abandoned status, "
+                "(string array), effect, status, author, source_session_id, and source_type "
+                "(internal or external). External findings require resources with paper/database "
+                "citations; internal findings must not include resources. For abandoned status, "
                 "reason is required; otherwise reason must be null or omitted. Optional: id, "
-                "created_at, n, provenance, note."
+                "created_at, n, provenance, note, markdown, and resources when external."
             )
         ),
     ],
@@ -86,7 +92,7 @@ def read(
             description=(
                 "Exact column to filter: id, category, disease, hypothesis_text, signature, "
                 "effect, n, status, author, timestamp/created_at, provenance, reason, note, "
-                "or source_session_id/source_session."
+                "source_session_id/source_session, source_type, markdown, or resources."
             )
         ),
     ],
@@ -95,26 +101,8 @@ def read(
         Field(description="Exact scalar value to match. This tool does not perform fuzzy search."),
     ],
 ) -> list[dict[str, Any]]:
-    """Call this tool to retrieve internal findings by one exact field/value filter."""
+    """Before biomedical research planning or interpretation, retrieve internal findings by one exact field/value filter."""
     return store.read(column, value)
-
-
-@mcp.prompt()
-def cairn_research_memory_workflow(research_question: str) -> str:
-    """Guide an agent through checking, summarizing, and updating Cairn research memory."""
-    return f"""
-Follow the Cairn research-memory workflow for this question:
-
-{research_question}
-
-1. Identify the best exact Cairn column/value filters from the question and call read.
-2. If useful, make additional read calls for other exact filters.
-3. Summarize internal results by status. Preserve numerical evidence and caveats exactly,
-   surface abandoned reasons prominently, and cite author, timestamp, and source session.
-4. Treat no exact match as limited database coverage, not proof of novelty.
-5. Call write only if this conversation contains a reviewed finding that satisfies Cairn's
-   required schema. Never infer or invent missing fields. Report the stored id after writing.
-""".strip()
 
 
 mcp_http_app = mcp.streamable_http_app()
