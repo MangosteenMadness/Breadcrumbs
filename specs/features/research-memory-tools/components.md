@@ -18,3 +18,7 @@
 | BC-MCP-008 | `recall_findings` — by topic, entity, or context | not-built |
 | BC-LIT-001 | External literature check — Europe PMC, cached, internal-first | not-built |
 | BC-MCP-009 | `render_wiki` — generated, read-only Markdown view | not-built |
+| BC-MCP-010 | `score_surprise` — reproducible Bayesian belief shift in bits | built-at-parity |
+| BC-MCP-011 | `write_knowledge` — source-verified human approval gate | built-at-parity |
+| BC-MCP-012 | `recall_knowledge` — BM25+dense rank fusion with constraint-aware active-patch recall | built-at-parity |
+| BC-MCP-013 | `find_experts` — calibrated evidence aggregation over canonical people | built-at-parity |

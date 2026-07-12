@@ -68,6 +68,86 @@
       "expected": ["Cached results are returned from the graph store", "No unhandled exception reaches the host"],
       "linked_requirements": ["REQ-009"],
       "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-005",
+      "title": "A surprising interaction becomes approved organizational knowledge",
+      "kind": "happy_path",
+      "mode": "public",
+      "description": "The host proposes a source-linked constraint, quantifies the before/after belief change from repeated categorical judgments, and presents a Memory Diff. Only the researcher's approved version is persisted.",
+      "preconditions": ["The source conversation is already ingested"],
+      "steps": [
+        "Call score_surprise with the prior and posterior belief samples",
+        "Show the proposition, exact quote, action change, and calculated metrics to the researcher",
+        "After explicit approval, call write_knowledge",
+        "Recall it in a fresh session using its topic and scope"
+      ],
+      "expected": [
+        "The score is reproducible from the stored samples",
+        "The stored metrics are server-calculated rather than caller-supplied",
+        "Recall returns the approved item with source provenance even when the fresh host adds an unknown inferred scope key",
+        "A numeric query value satisfying a stored typed condition is reported as compatible"
+      ],
+      "linked_requirements": ["REQ-012", "REQ-013", "REQ-014"],
+      "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-006",
+      "title": "A later correction supersedes but does not erase prior knowledge",
+      "kind": "edge_case",
+      "mode": "public",
+      "description": "Continual organizational memory is an append-only patch sequence: a newly approved belief revision points to the prior item rather than overwriting its evidence.",
+      "preconditions": ["An approved knowledge item already exists"],
+      "steps": [
+        "Approve a belief_revision with supersedes_id pointing at the prior item",
+        "Recall active knowledge",
+        "Recall again with include_superseded enabled"
+      ],
+      "expected": [
+        "Default recall returns only the new active patch",
+        "Audit recall returns both versions and their link"
+      ],
+      "linked_requirements": ["REQ-013", "REQ-014"],
+      "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-007",
+      "title": "A fresh agent retrieves a differently worded scoped decision",
+      "kind": "edge_case",
+      "mode": "public",
+      "description": "The host paraphrases an approved decision and invents a plausible method key while asking about pH 6.5. Dense retrieval must bridge the wording change, and unknown inferred scope must not erase the relevant patch.",
+      "preconditions": ["An approved synthetic decision is indexed by FTS5 and the pinned local embedding model"],
+      "steps": [
+        "From a fresh host, call recall_knowledge with the assay, buffer_pH 6.5, and an unstored method key",
+        "Inspect the retrieval components and scope compatibility"
+      ],
+      "expected": [
+        "The active patch is returned from local retrieval",
+        "buffer_pH is compatible and method is unknown rather than exclusionary",
+        "The result exposes its BM25, dense, rank-fusion, token, and applicability components"
+      ],
+      "linked_requirements": ["REQ-014"],
+      "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-008",
+      "title": "A fresh agent identifies demonstrated topic expertise with evidence",
+      "kind": "happy_path",
+      "mode": "public",
+      "description": "The host asks who has expertise in a topic. Breadcrumbs aggregates authored decisions, findings, and abandoned work across independent sessions without turning reviewer activity or message volume into an unsupported expert claim.",
+      "preconditions": ["At least two canonical provisional people have source-linked contributions"],
+      "steps": [
+        "Call find_experts with a natural-language topic and optional scope",
+        "Inspect the ranked people, confidence, score components, and cited evidence"
+      ],
+      "expected": [
+        "The person with stronger independent primary evidence ranks first",
+        "Repeated work in one session is capped and review-only people are excluded",
+        "Abandoned work is retained as evidence",
+        "The response is calibrated to the stores searched and does not assert a definitive company expert"
+      ],
+      "linked_requirements": ["REQ-015"],
+      "evidence_required": ["command-log"]
     }
   ],
   "holdout_suites": []

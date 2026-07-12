@@ -33,13 +33,13 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 ## MCP — the server and its tools
 
 ### BC-MCP-001 — Server bootstrap and tool registration
-- **Behavior:** A Python MCP server exposing the five tools below, connected to Claude Desktop as the
+- **Behavior:** A Python MCP server exposing the six built tools below, connected to Claude Desktop as the
   host (the host stands in for K Pro in the demo). Opens the graph store read-write and surfaces
   errors rather than failing silently mid-demo.
 - **Data:** reads/writes `ingestion/breadcrumbs.db` through the existing store module.
 - **Source:** not-built.
 - **Status:** not-built.
-- **REQ-001:** The server starts, registers all five tools, and Claude Desktop lists them.
+- **REQ-001:** The server starts, registers all six tools, and Claude Desktop lists them.
 
 ### BC-MCP-002 — Tool contracts
 - **Behavior:** Typed input/output models for every tool, exported to a checked-in JSON Schema. This
@@ -131,3 +131,80 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **Status:** not-built.
 - **REQ-010:** The rendered page cites the findings it was generated from and is reproducible from
   the graph alone.
+
+### BC-MCP-010 — `score_surprise`
+- **Behavior:** Quantifies how much a conversation changed a candidate belief without asking a
+  model for an opaque importance score. The host supplies repeated categorical belief judgments
+  from before and after the cited interaction. The tool maps the fixed five-label scale to
+  `[0, .25, .5, .75, 1]`, fits Beta distributions with documented pseudo-counts, and returns prior
+  and posterior means, signed/absolute belief shift, `KL(posterior || prior)` in bits, entropy
+  change, and optional Jensen-Shannon divergence for sampled actions. Given the same samples the
+  output is identical. Prior/posterior sample counts must match so Monte Carlo replicate count
+  cannot masquerade as evidence or certainty.
+- **Data:** no persistence; only structured samples enter the deterministic calculator.
+- **Source:** `src/breadcrumbs/surprise.py`; `src/breadcrumbs/server.py`.
+- **Status:** built-at-parity.
+- **REQ-012:** Fixed fixtures produce stable belief-shift, Bayesian-surprise, entropy, and action
+  divergence values without third-party numerical dependencies.
+
+### BC-MCP-011 — `write_knowledge`
+- **Behavior:** Persists at most one already-reviewed candidate per call. `approved_by` is mandatory;
+  the evidence quote must occur verbatim in the referenced chat message; the source session is
+  derived from that message; and all surprise fields are recomputed from the supplied samples
+  rather than trusted from the host. `abandoned` requires a reason. A revision may point to the
+  approved item it supersedes, preserving an append-only patch history.
+- **Data:** writes `knowledge_items` only after validation.
+- **Source:** `src/breadcrumbs/store.py`; `src/breadcrumbs/server.py`.
+- **Status:** built-at-parity.
+- **REQ-013:** Missing approval, an unknown source message, a non-verbatim quote, and an abandoned
+  item without a reason are each rejected without changing the database. The write also requires a
+  logged elicitation run from a model permitted by `.spec/repo.json`.
+
+### BC-MCP-012 — `recall_knowledge`
+- **Behavior:** Retrieves only approved internal knowledge with a local, constraint-aware hybrid
+  ranker. SQLite FTS5/BM25, deterministic field-weighted token coverage, and dense embeddings from
+  the pinned `BAAI/bge-small-en-v1.5` FastEmbed model generate candidates from
+  the proposition, rationale, approved aliases, typed conditions, scope, action, reason, and source
+  quote. Structured scope is an applicability feature by default, not a model-invented hard gate:
+  exact facet matches and satisfied numeric conditions boost a patch; approved condition-field
+  aliases map host wording such as `pH` to a canonical field such as `buffer_pH`; contradictions lower it; and
+  unknown keys do not remove it. `strict_scope=true` preserves exact-subset filtering for a caller
+  that explicitly needs it. Each result reports the BM25/token components and compatible,
+  incompatible, and unknown scope fields. Bayesian surprise remains only a tie-breaker; it is not a
+  relevance or importance score. BM25 and exact-cosine dense rankings are fused with reciprocal
+  rank fusion; exact cosine is deliberate at this store size so an approximate index cannot trade
+  away recall. Dense-only candidates must meet the pinned `0.55` cosine floor. Query and passage
+  embeddings are computed locally in the organization's runtime; only public model weights are
+  downloaded. Every result reports the model, dense similarity/rank, BM25 rank, field coverage,
+  fusion score, and scope compatibility. Superseded rows are excluded by default but remain available for
+  audit. A match to historical wording resolves forward to the active patch head and reports
+  `matched_via_history`, so corrections do not erase old retrieval aliases.
+- **Data:** reads `knowledge_items`, `knowledge_fts`, and `knowledge_embeddings`; returns source identifiers, scoring inputs and metrics,
+  action deltas, and patch links.
+- **Source:** `src/breadcrumbs/store.py`; `src/breadcrumbs/server.py`.
+- **Status:** built-at-parity.
+- **REQ-014:** A query with an inferred unknown scope key and a numeric value satisfying a stored
+  typed condition returns the relevant active approved item; an approved alias is searchable;
+  dense-only paraphrases are candidates; the BM25 and dense ranks are fused and exposed;
+  `strict_scope=true` retains exact-subset behavior; superseded items remain hidden by default and historical wording resolves to the active patch.
+
+### BC-MCP-013 — `find_experts`
+- **Behavior:** Answers expertise questions by retrieving topic-relevant approved knowledge and
+  reviewed findings, resolving their author/reviewer contribution edges to canonical provisional
+  people, and aggregating demonstrated evidence. Authorship and finding ownership count as primary
+  evidence; review is supporting evidence and cannot qualify a person by itself. Repeated evidence
+  from one source session is capped so verbosity cannot dominate, abandoned attempts are not
+  penalized, and every ranked person includes the concrete artifacts that support the result. The
+  deterministic `expertise_evidence_v1` score is a ranking score, never a probability. Confidence is
+  `low | moderate | high` based on independent source-session and primary-evidence counts. Output
+  says "strongest demonstrated experience among the sources searched," never that someone is the
+  organization's definitive expert.
+- **Data:** reads `people`, `person_contributions`, `knowledge_items`, `knowledge_embeddings`, and
+  `findings`; returns canonical/provisional identity status, role-labelled evidence, distinct
+  session counts, score components, confidence, and searched sources.
+- **Source:** `src/breadcrumbs/store.py`; `src/breadcrumbs/server.py`.
+- **Status:** built-at-parity.
+- **REQ-015:** Independent relevant authored contributions rank above repeated same-session work;
+  review-only people are excluded; abandoned work remains evidence; names differing only in case or
+  whitespace resolve to one provisional person; and empty results name the stores searched without
+  claiming a definitive absence of expertise.

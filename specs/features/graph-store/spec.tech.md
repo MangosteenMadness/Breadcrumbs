@@ -129,3 +129,41 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **REQ-008:** `parse_dataset_overview`/`parse_available_tables`/`parse_dataset_columns` round-trip
   a real captured K Pro Explore Data page's text into `datasets`/`dataset_columns` rows, and
   re-ingesting one table's grid replaces only that table's columns.
+
+### BC-GRAPH-008 — Approved interaction knowledge
+- **Behavior:** Stores durable decisions, constraints, exceptions, abandoned approaches, and belief
+  revisions extracted from researcher-agent interactions. A row exists only after a named human
+  approves it. Every row contains an exact quote, a deferred foreign key to its source message, and
+  that message's SHA256 digest so re-ingest remains compatible without hiding source drift. The exact
+  prior/posterior belief samples, approved elicitation model/run ID, and versioned scoring method,
+  deterministic information-theoretic metrics, a structured before/after action delta, approved
+  lexical aliases, and typed applicability conditions (`field`, optional approved field aliases,
+  comparison operator, value, optional unit). SQLite FTS5 indexes the approved retrieval fields and
+  model-versioned dense vectors are stored with their content hashes in `knowledge_embeddings`.
+  Both are derived indexes, never authorities separate from `knowledge_items`. Corrections are append-only patches linked through
+  `supersedes_id`; prior rows remain auditable and each row has at most one successor, so active
+  organizational memory is a sequence rather than an ambiguous branch.
+- **Data:** `knowledge_items`, `knowledge_fts`, and `knowledge_embeddings`, with kind vocabulary
+  `decision | constraint | exception | abandoned | belief_revision`.
+- **Source:** `schema/graph_schema.sql`; `src/breadcrumbs/store.py`.
+- **Status:** built-at-parity.
+- **REQ-009:** An approved item round-trips with source provenance, aliases, typed conditions, scoring inputs, and a model-versioned dense vector intact; an
+  unapproved or misquoted item is rejected without writing a row. Re-ingesting the source session
+  may replace the same message ID transactionally but may not silently remove an approved source;
+  a same-ID content edit reads back with `source_drifted: true`, and the derived FTS5 and embedding rows remain synchronized with the authoritative patch.
+
+### BC-GRAPH-009 — People and contribution edges
+- **Behavior:** Normalizes exact person names with Unicode NFKC, whitespace collapse, and case-folding
+  into stable `P-...` IDs. Automatically discovered names are explicitly `provisional`; no fuzzy
+  identity merge is guessed. `person_contributions` records whether a person authored a finding,
+  authored approved interaction knowledge, or reviewed a knowledge patch, together with its source
+  session. The links are derived from authoritative artifact provenance and are backfilled on
+  connection so existing stores gain the expertise view without rewriting findings or knowledge.
+- **Data:** `people` and `person_contributions`; contribution vocabulary
+  `finding_author | knowledge_author | knowledge_reviewer`.
+- **Source:** `schema/graph_schema.sql`; `src/breadcrumbs/people.py`;
+  `src/breadcrumbs/store.py`.
+- **Status:** built-at-parity.
+- **REQ-010:** Case/whitespace variants resolve to one stable provisional person; existing and new
+  findings/knowledge produce idempotent role-labelled contribution edges; every edge names its
+  artifact and source session; and no reviewer-only edge is mislabeled as authorship.

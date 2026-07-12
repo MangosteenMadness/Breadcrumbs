@@ -15,3 +15,5 @@
 | BC-GRAPH-005 | Reviewed-write path — validation as the human-confirm gate | built-at-parity |
 | BC-GRAPH-006 | Schema migration — CHECK-constraint table rebuild | not-built |
 | BC-GRAPH-007 | Dataset catalog — K Pro Explore Data table/column metadata | gap |
+| BC-GRAPH-008 | Approved interaction knowledge — source-linked patches with FTS5 and model-versioned dense index | built-at-parity |
+| BC-GRAPH-009 | Canonical provisional people and source-linked contribution edges | built-at-parity |

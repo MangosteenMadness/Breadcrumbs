@@ -54,12 +54,29 @@ own schemas and templates, and the validator is a Python port so this stays a No
 ## Breadcrumbs MCP server
 
 The MCP server is a thin adapter over the same `ingestion/breadcrumbs.db` used by the ingestion
-pipeline. It does not create a second database or schema. It exposes two tools:
+pipeline. It does not create a second database or schema. It exposes six tools:
 
 - `write(record)` validates and inserts one reviewed finding using
   `ingestion/write_findings.py`.
 - `read(column, value)` performs an allowlisted, parameterized equality query against the
   `findings` table.
+- `score_surprise(...)` fits before/after Beta beliefs from repeated fixed-label judgments and
+  reports belief shift, `KL(posterior || prior)`, entropy change, and optional action divergence in
+  bits. The same samples always produce the same result.
+- `write_knowledge(record, approved_by)` persists a decision, constraint, exception, abandoned approach, or
+  belief revision only after named human approval supplied as a separate tool argument. The
+  evidence quote must occur verbatim in its ingested source message; approved aliases and typed
+  applicability conditions are optional; all metrics and action deltas are recomputed server-side.
+- `recall_knowledge(...)` fuses a local SQLite FTS5/BM25 index with exact-cosine dense retrieval
+  from a pinned 384-dimensional ONNX model, then adds deterministic field coverage and
+  condition-aware scope scoring. Vectors stay inside the local SQLite store with their model and
+  content hash. Unknown inferred scope fields do not erase candidates;
+  `strict_scope=true` is available for explicit exact-subset filtering. Superseded patches are
+  hidden by default but remain available for audit.
+- `find_experts(...)` aggregates source-linked authored knowledge and findings across canonical
+  provisional people. It caps repeated evidence per session, keeps abandoned work, excludes
+  review-only identities, and returns calibrated confidence plus the supporting artifacts rather
+  than asserting that somebody is definitively the organization's expert.
 
 Install and run over stdio:
 
@@ -75,7 +92,12 @@ BREADCRUMBS_TRANSPORT=http .venv/bin/breadcrumbs-mcp
 ```
 
 The HTTP MCP endpoint is `http://127.0.0.1:8000/mcp`; health is available at `/health`.
-Set `BREADCRUMBS_DB` to override the default `ingestion/breadcrumbs.db` path.
+The demo UI uses equivalent REST seams at `/knowledge/score`, `/knowledge`,
+`/knowledge/recall`, and `/experts/find`.
+Set `BREADCRUMBS_DB` to override the default `ingestion/breadcrumbs.db` path. Dense retrieval is
+enabled by default with `BAAI/bge-small-en-v1.5`; set `BREADCRUMBS_EMBEDDINGS=0` to disable it or
+`BREADCRUMBS_EMBEDDING_MODEL` to an explicitly reviewed local FastEmbed model. The first start
+downloads the public model; subsequent inference is local to the host or organization.
 
 The MCP accepts `created_at` and `source_session` as read aliases for the physical
 `timestamp` and `source_session_id` columns. Writes use the reviewed extraction shape in
@@ -123,4 +145,6 @@ npm run dev            # http://localhost:3000
 
 Works standalone out of the box against a seeded mock. To point it at the real backend, set
 `BREADCRUMBS_MCP_URL` in `ui/.env.local` (see [`ui/README.md`](ui/README.md) for the expected
-response shape).
+response shape). The Memory Diff review additionally requires
+`BREADCRUMBS_API_URL=http://127.0.0.1:8000`; unlike duplication lookup, an approval write has no
+mock-success fallback.

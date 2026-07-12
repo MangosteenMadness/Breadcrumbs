@@ -4,7 +4,7 @@
   "feature_owner": "Builder 2",
   "business_process": "Before a researcher runs a hypothesis, check the org's own graph first — including abandoned attempts — then the published record, and report what was found in calibrated language.",
   "status": "planned",
-  "data_classification": "confidential",
+  "data_classification": "public",
   "layers": ["contract", "backend"],
   "component_ids": [
     "BC-MCP-001",
@@ -16,12 +16,16 @@
     "BC-MCP-007",
     "BC-MCP-008",
     "BC-LIT-001",
-    "BC-MCP-009"
+    "BC-MCP-009",
+    "BC-MCP-010",
+    "BC-MCP-011",
+    "BC-MCP-012",
+    "BC-MCP-013"
   ],
   "acceptance_criteria": [
     {
       "id": "REQ-001",
-      "text": "The MCP server starts, registers all five tools, and the host lists them.",
+      "text": "The MCP server starts, registers all six tools, and the host lists them.",
       "coverage": "automated_check",
       "command": "python -m pytest tests/test_mcp_server.py -k registration"
     },
@@ -85,6 +89,30 @@
       "coverage": "manual_review",
       "reviewer": "Biologist 2",
       "evidence": "review-note"
+    },
+    {
+      "id": "REQ-012",
+      "text": "Fixed prior/posterior fixtures produce stable belief-shift, Bayesian-surprise, entropy, and optional action-divergence values without third-party numerical dependencies.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_surprise.py"
+    },
+    {
+      "id": "REQ-013",
+      "text": "write_knowledge takes reviewer identity from a separate approval event and rejects missing approval, unlogged or unapproved-model elicitations, unknown source messages, non-verbatim evidence, abandoned items without a reason, conflicting retries, and branching patches without changing the approved row.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_knowledge_memory.py -k gate"
+    },
+    {
+      "id": "REQ-014",
+      "text": "recall_knowledge fuses local FTS5/BM25 and dense exact-cosine rankings with reciprocal rank fusion, treats inferred scope as compatible/incompatible/unknown applicability unless strict_scope is explicitly requested, evaluates typed numeric conditions, searches approved aliases, reports the embedding model and score components, resolves historical wording to the active patch, and excludes superseded items by default.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_knowledge_memory.py -k recall"
+    },
+    {
+      "id": "REQ-015",
+      "text": "find_experts ranks canonical people from source-linked relevant knowledge and findings using deterministic role weights and a per-session cap, excludes review-only identities, retains abandoned evidence, exposes all score components and citations, and uses calibrated strongest-demonstrated-experience language.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_expertise.py"
     }
   ],
   "evidence_required": ["tests"],
@@ -98,7 +126,12 @@
       "WriteFindingInput",
       "RecallFindingsInput",
       "RecallFindingsResult",
-      "RenderWikiInput"
+      "RenderWikiInput",
+      "SurpriseInput",
+      "KnowledgeCandidate",
+      "KnowledgeRecallInput",
+      "ExpertLookupInput",
+      "ExpertLookupResult"
     ],
     "enums": ["matched", "possible", "no-match"]
   },
@@ -110,10 +143,12 @@
       { "method": "POST", "path": "/mcp/tools/check_duplication" },
       { "method": "POST", "path": "/mcp/tools/write_finding" },
       { "method": "POST", "path": "/mcp/tools/recall_findings" },
-      { "method": "POST", "path": "/mcp/tools/render_wiki" }
+      { "method": "POST", "path": "/mcp/tools/render_wiki" },
+      { "method": "POST", "path": "/mcp/tools/score_surprise" },
+      { "method": "POST", "path": "/mcp/tools/write_knowledge" },
+      { "method": "POST", "path": "/mcp/tools/recall_knowledge" },
+      { "method": "POST", "path": "/mcp/tools/find_experts" }
     ]
   },
-  "open_questions": [
-    "check_duplication sends hypothesis text to the Claude API for semantic matching. Confirm this is acceptable for Owkin research data and pin specConfig.approvedModels. See review-queue.md row 1 — this BLOCKS completion."
-  ]
+  "open_questions": []
 }

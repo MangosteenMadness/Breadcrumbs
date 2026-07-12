@@ -5,8 +5,8 @@ Before a researcher runs a hypothesis, it checks — *internally first* — whet
 someone in their org already explored it (including **abandoned** attempts),
 then whether the published world has.
 
-This repo is **the UI only**. The MCP server, wiki, SQLite store, ingestor, and
-Q&A live in the other teams' repos. This app talks to them through one seam.
+The UI talks to the shared server through narrow Next.js routes. Duplication lookup can run against
+its seeded mock; approved interaction knowledge always uses the real backend.
 
 ## Run
 
@@ -56,6 +56,33 @@ The **first** item in `matches` is rendered as the primary hit. Order the rest
 however you want surfaced — the seed puts dead ends first, then in-flight, then
 related.
 
+## Memory Diff — human-gated interaction knowledge
+
+The header's **Review memory diff** action shows a source-linked candidate before it enters the
+authoritative trail: exact evidence quote, structured scope, repeated before/after belief samples,
+Bayesian surprise, certainty gain, action divergence, and the concrete action delta.
+
+The checked-in TP53 example is explicitly an **illustrative UI fixture**: its source quote comes
+from the ingested session, but its fixed judgment samples were not logged by that run, so approval
+is disabled. A live candidate becomes writable only when the host supplies an observed elicitation
+from an approved model with a traceable run ID. The fixture is never presented as authoritative
+evidence and cannot pollute the graph.
+
+Configure the REST base alongside the duplication seam:
+
+```bash
+# .env.local
+BREADCRUMBS_API_URL=http://localhost:8000
+```
+
+`POST /api/knowledge` proxies scoring to `/knowledge/score` and explicit approval to `/knowledge`.
+The candidate never carries its own reviewer identity; the visible session actor is attached only
+when the person clicks approve. Production should replace that demo actor with K Pro's authenticated
+identity.
+When `BREADCRUMBS_API_URL` is absent or unreachable, scoring/approval reports an error and the UI
+does **not** claim that anything was saved. The Python backend verifies the quote against the
+ingested message and recomputes every metric; the browser's values are never trusted.
+
 ## Structure
 
 | Path | What |
@@ -63,8 +90,11 @@ related.
 | `app/page.tsx` | The whole UI — sidebar, chat + thinking animation, trail graph |
 | `app/globals.css` | Ported styles (fonts wired via `next/font` CSS vars) |
 | `app/api/check_duplication/route.ts` | The seam: proxy to MCP, mock fallback |
+| `app/api/knowledge/route.ts` | Surprise/approval proxy; deliberately no mock-success write path |
+| `app/memory-diff.tsx` | Source, belief, action, approve/skip review card |
 | `lib/data.ts` | Seeded trail (22 findings), types, the `DuplicationResult` contract |
 | `lib/duplication.ts` | Local mock of `check_duplication` |
+| `lib/knowledge.ts` | Typed source-linked Memory Diff fixture and action delta |
 | `docs/Breadcrumbs-brief.md` | Hackathon brief |
 | `docs/original-ui.html` | The original single-file UI this was ported from |
 
