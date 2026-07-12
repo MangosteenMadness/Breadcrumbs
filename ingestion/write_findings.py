@@ -34,7 +34,7 @@ def write_payload(connection, payload: dict[str, Any]) -> None:
     with connection:
         approved_categories = {row[0] for row in connection.execute("SELECT id FROM topic_categories")}
         for finding in findings:
-            required = {"id", "category", "disease", "hypothesis_text", "entities", "effect", "status", "author", "created_at", "source_session_id"}
+            required = {"id", "category", "disease", "hypothesis_text", "entities", "effect", "status", "author", "created_at", "source_session_id", "source_type"}
             missing = required - finding.keys()
             if missing:
                 raise ValueError(f"Finding {finding.get('id', '<unknown>')} is missing: {', '.join(sorted(missing))}")
@@ -46,24 +46,42 @@ def write_payload(connection, payload: dict[str, Any]) -> None:
                 raise ValueError(f"Abandoned finding {finding['id']} requires a reason")
             if finding["status"] != "abandoned" and finding.get("reason"):
                 raise ValueError(f"Only abandoned finding {finding['id']} may contain a reason")
+            if finding["source_type"] not in {"external", "internal"}:
+                raise ValueError(f"Invalid source_type {finding.get('source_type')!r} for {finding['id']}")
+            if not isinstance(finding.get("markdown", ""), str):
+                raise ValueError(f"markdown for {finding['id']} must be a string")
+            resources = finding.get("resources") or []
+            if finding["source_type"] == "external":
+                if not resources:
+                    raise ValueError(f"External finding {finding['id']} requires non-empty resources")
+                for r in resources:
+                    if r.get("type") not in {"paper", "database"} or not r.get("citation"):
+                        raise ValueError(f"Bad resource in {finding['id']}: {r!r}")
+            else:  # internal
+                if resources:
+                    raise ValueError(f"Internal finding {finding['id']} must not carry resources")
+            resources_json = json.dumps(resources) if resources else None
             if not connection.execute("SELECT 1 FROM chat_sessions WHERE id = ?", (finding["source_session_id"],)).fetchone():
                 raise ValueError(f"Unknown source session {finding['source_session_id']!r}")
             entities = normalize_entities(finding["entities"])
             connection.execute(
                 """
                 INSERT INTO findings(id, disease, hypothesis_text, signature, effect, n, status, author, timestamp,
-                                     provenance, reason, note, category, entities, source_session_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     provenance, reason, note, category, entities, source_session_id,
+                                     source_type, markdown, resources)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     disease=excluded.disease, hypothesis_text=excluded.hypothesis_text,
                     signature=excluded.signature, effect=excluded.effect, n=excluded.n,
                     status=excluded.status, author=excluded.author, timestamp=excluded.timestamp,
                     provenance=excluded.provenance, reason=excluded.reason, note=excluded.note,
-                    category=excluded.category, entities=excluded.entities, source_session_id=excluded.source_session_id
+                    category=excluded.category, entities=excluded.entities, source_session_id=excluded.source_session_id,
+                    source_type=excluded.source_type, markdown=excluded.markdown, resources=excluded.resources
                 """,
                 (finding["id"], finding["disease"], finding["hypothesis_text"], ",".join(entities), finding["effect"],
                  finding.get("n"), finding["status"], finding["author"], finding["created_at"], finding.get("provenance"),
-                 finding.get("reason"), finding.get("note"), finding["category"], json.dumps(entities), finding["source_session_id"]),
+                 finding.get("reason"), finding.get("note"), finding["category"], json.dumps(entities), finding["source_session_id"],
+                 finding["source_type"], finding.get("markdown"), resources_json),
             )
         for edge in edges:
             if edge.get("relationship") not in {"extends", "contradicts", "related-to"}:
