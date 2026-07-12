@@ -330,10 +330,10 @@ export default function Home() {
             <button
               className="gexpand"
               onClick={() => setExpanded(true)}
-              title="Expand trail"
-              aria-label="Expand trail"
+              title="Expand trail to fullscreen"
+              aria-label="Expand trail to fullscreen"
             >
-              ⤢
+              <span className="gexpand-ic">⤢</span> Fullscreen
             </button>
           </div>
         </div>
