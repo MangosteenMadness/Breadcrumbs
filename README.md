@@ -60,7 +60,7 @@ pipeline. It does not create a second database or schema. It exposes five tools:
   what was found there. General literature research remains the host agent's responsibility.
 - `write_finding(record)` validates and inserts one reviewed finding using the shared gate in
   `ingestion/write_findings.py`.
-- `recall_findings(query, limit)` returns locally matched findings, graph edges, and cached papers.
+- `recall_findings(query, limit)` returns locally matched internal findings and graph edges.
 - `render_wiki(finding_ids, title)` generates a cited, read-only Markdown view of the graph.
 - `read(column, value)` performs an allowlisted exact query for callers that already know a stored
   field and canonical value.
