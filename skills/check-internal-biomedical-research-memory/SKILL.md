@@ -22,15 +22,16 @@ If the connector tools are not loaded, search for the `breadcrumbs` tools, then 
 
 ## Read before reasoning
 
-The tool performs exact equality matching, not semantic or fuzzy search. Treat natural-language
-terms in the request as search clues, not necessarily as the literal values stored in Breadcrumbs.
+Use `breadcrumbs:check_duplication` for a proposed hypothesis and `breadcrumbs:recall_findings`
+for broader topic, entity, or context recall. Both use the local graph matcher. Use the exact
+`breadcrumbs:read` primitive when the request supplies a credible stored field/value filter.
 
 1. Extract disease, category, gene, biomarker, phenotype, outcome, and status clues from the request.
 2. Normalize obvious names to likely stored values before reading. Prefer canonical disease codes
    and gene symbols over prose names.
-3. Call `breadcrumbs:read` with one exact `column` and scalar `value` for each useful canonical
-   value. Start with `disease`; use `category`, `status`, `author`, `source_session_id`, or another
-   supported field when the request supplies a credible exact value.
+3. Call `breadcrumbs:check_duplication` or `breadcrumbs:recall_findings` with the research question.
+   Add exact `breadcrumbs:read` calls for `disease`, `category`, `status`, `author`,
+   `source_session_id`, or another supported field when the request supplies a credible value.
 4. If a term has multiple scientifically plausible canonical forms, make a bounded set of
    additional reads rather than assuming the first form is correct. Usually two to four reads are
    enough; do not generate an unbounded synonym list.
@@ -100,7 +101,7 @@ Source: author, timestamp, source_session_id
 
 ## Write reviewed findings only
 
-Call `breadcrumbs:write` only when the conversation contains a reviewed finding supported by an ingested source session. Write one finding per tool call.
+Call `breadcrumbs:write_finding` only when the conversation contains a reviewed finding supported by an ingested source session. Write one finding per tool call.
 
 Required `record` fields:
 
@@ -111,7 +112,7 @@ Required `record` fields:
   "hypothesis_text": "specific testable claim or question",
   "entities": ["NORMALIZED", "ENTITY", "NAMES"],
   "effect": "verbatim result including statistics and caveats",
-  "status": "confirmed | in-progress | abandoned",
+  "status": "confirmed | in-progress | abandoned | open",
   "author": "researcher name",
   "source_session_id": "existing ingested session id",
   "source_type": "internal | external"

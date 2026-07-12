@@ -83,7 +83,8 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **Behavior:** The read-only Markdown wiki rendered from the graph, shown at the end of the demo as
   the durable artifact: the org's research memory, written by nobody, derived entirely from what the
   team actually did. Carries a banner saying it is generated and never edited back.
-- **Data:** rendered from `findings`, `finding_edges`, `external_literature`.
+- **Data:** rendered from `findings` and `finding_edges` when the live MCP is configured; the
+  standalone UI mock remains frontend-owned demo data.
 - **Source:** not-built.
 - **Status:** not-built.
 - **REQ-005:** The wiki page renders from the post-demo graph and cites both demo findings.

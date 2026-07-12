@@ -5,12 +5,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from ingestion.store import DEFAULT_DB_PATH
 
+from .contracts import CheckDuplicationInput, RenderWikiInput, WriteFindingInput
 from .store import BreadcrumbsStore, Scalar
 
 DB_PATH = Path(os.getenv("BREADCRUMBS_DB", str(DEFAULT_DB_PATH)))
@@ -21,12 +23,10 @@ Breadcrumbs is the organization's internal research-memory database. Use its too
 do not stop after merely discovering or listing them.
 
 READING
-- Before starting related research, query Breadcrumbs for relevant prior work.
-- Call read with exactly one allowed column and one exact scalar value. Useful columns
-  include category, disease, status, author, and source_session_id. Make multiple read
-  calls when more than one exact filter is useful; read is not semantic or fuzzy search.
+- Before starting related research, call check_duplication or recall_findings.
+- Use read only when an exact stored field/value filter is required.
 - An empty result means only that no row matched that exact filter in the current database.
-  Never describe an empty result as proof of novelty.
+  Never describe an empty result as proof that the work is new.
 
 SUMMARIZING READ RESULTS
 - Lead with what internal work exists and how directly it bears on the new question.
@@ -39,7 +39,7 @@ SUMMARIZING READ RESULTS
   statement remains traceable. Say when a field is absent; never invent it.
 
 WRITING
-- Call write only for a reviewed research finding supported by the conversation or source
+- Call write_finding only for a reviewed research finding supported by the conversation or source
   session. Write one finding per call and do not fabricate missing evidence.
 - Required record fields are category, disease, hypothesis_text, entities (array of strings),
   effect, status, author, source_session_id, and source_type. The category must already be
@@ -51,7 +51,8 @@ WRITING
   findings and must be null or omitted for other statuses.
 - Optional fields are id, created_at, n, provenance, note, markdown, and resources where
   allowed by source_type. Breadcrumbs supplies id and created_at when omitted. Put
-  methodological caveats and future guidance in note.
+  methodological caveats and future guidance in note. The status open is allowed for a reviewed
+  hypothesis that has been logged but not run.
 - After writing, report the stored id and summarize exactly what was persisted.
 """.strip()
 
@@ -63,11 +64,28 @@ mcp = FastMCP(
     streamable_http_path="/",
 )
 
+READ_ONLY_TOOL = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=False,
+)
+
+
+@mcp.tool(annotations=READ_ONLY_TOOL)
+def check_duplication(
+    hypothesis_text: Annotated[str, Field(min_length=1, description="Hypothesis to check.")],
+    limit: Annotated[int, Field(ge=1, le=20, description="Maximum internal matches.")] = 5,
+) -> dict[str, Any]:
+    """Check the internal Breadcrumbs graph for prior organizational work."""
+    request = CheckDuplicationInput(hypothesis_text=hypothesis_text, limit=limit)
+    return store.check_duplication(request.hypothesis_text, limit=request.limit)
+
 
 @mcp.tool()
-def write(
+def write_finding(
     record: Annotated[
-        dict[str, Any],
+        WriteFindingInput,
         Field(
             description=(
                 "One reviewed finding. Required: category, disease, hypothesis_text, entities "
@@ -81,10 +99,32 @@ def write(
     ],
 ) -> dict[str, Any]:
     """Persist one reviewed internal finding; never use this for unverified or invented claims."""
-    return store.write(record)
+    return store.write(record.model_dump(exclude_none=True))
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY_TOOL)
+def recall_findings(
+    query: Annotated[str, Field(min_length=1, description="Question, topic, entity, or context.")],
+    limit: Annotated[int, Field(ge=1, le=100, description="Maximum findings.")] = 10,
+) -> dict[str, Any]:
+    """Recall semantically related internal findings and graph edges."""
+    return store.recall_findings(query, limit=limit)
+
+
+@mcp.tool(annotations=READ_ONLY_TOOL)
+def render_wiki(
+    finding_ids: Annotated[
+        list[str] | None,
+        Field(description="Optional finding IDs; omit to render the full graph."),
+    ] = None,
+    title: Annotated[str, Field(description="Wiki page title.")] = "Breadcrumbs research memory",
+) -> dict[str, Any]:
+    """Render a reproducible read-only Markdown view whose citations point to graph finding IDs."""
+    request = RenderWikiInput(finding_ids=finding_ids, title=title)
+    return store.render_wiki(finding_ids=request.finding_ids, title=request.title)
+
+
+@mcp.tool(annotations=READ_ONLY_TOOL)
 def read(
     column: Annotated[
         str,
@@ -114,12 +154,22 @@ async def lifespan(app: FastAPI):
         yield
 
 
-app = FastAPI(title="Breadcrumbs MCP", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="Breadcrumbs MCP", version="0.3.0", lifespan=lifespan)
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "database": str(DB_PATH), "mcp_endpoint": "/mcp"}
+
+
+@app.post("/check_duplication")
+def check_duplication_http(payload: dict[str, Any]) -> dict[str, Any]:
+    """UI seam; the response is the same DuplicationResult contract as the MCP tool."""
+    try:
+        request = CheckDuplicationInput.model_validate(payload)
+        return store.check_duplication(request.hypothesis_text, limit=request.limit)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 app.mount("/mcp", mcp_http_app)

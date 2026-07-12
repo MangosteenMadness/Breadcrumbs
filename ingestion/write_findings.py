@@ -15,7 +15,8 @@ except ImportError:
     from store import DEFAULT_DB_PATH, connect
 
 SYNONYMS = {"LKB1": "STK11"}
-VALID_STATUSES = {"confirmed", "in-progress", "abandoned"}
+VALID_STATUSES = {"confirmed", "in-progress", "abandoned", "open"}
+VALID_RELATIONSHIPS = {"duplicate_of", "extends", "related", "contradicts"}
 
 
 def normalize_entities(entities: list[str]) -> list[str]:
@@ -84,7 +85,7 @@ def write_payload(connection, payload: dict[str, Any]) -> None:
                  finding["source_type"], finding.get("markdown"), resources_json),
             )
         for edge in edges:
-            if edge.get("relationship") not in {"extends", "contradicts", "related-to"}:
+            if edge.get("relationship") not in VALID_RELATIONSHIPS:
                 raise ValueError(f"Invalid edge relationship {edge.get('relationship')!r}")
             created_at = edge.get("created_at") or datetime.now(timezone.utc).isoformat()
             connection.execute(

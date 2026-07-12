@@ -3,18 +3,18 @@
   "scenarios": [
     {
       "id": "SCN-001",
-      "title": "Internal-first: an internal match short-circuits the external check",
+      "title": "Internal-only: duplication checks organizational memory",
       "kind": "happy_path",
       "mode": "public",
-      "description": "The ordering claim in the pitch is testable, so test it. If the org's own graph already answers the question, no external source is consulted at all.",
+      "description": "Breadcrumbs supplies organizational research memory only; general literature research remains with the host agent.",
       "preconditions": ["The graph holds a confirmed finding matching the hypothesis"],
       "steps": [
         "Call check_duplication with a hypothesis that matches an existing internal finding",
-        "Observe whether the Europe PMC client was invoked"
+        "Inspect the returned fields and named sources"
       ],
       "expected": [
-        "A verdict of 'matched' is returned, citing the internal finding",
-        "The external literature client was never called"
+        "A verdict of 'match' is returned, citing the internal finding",
+        "Only the internal Breadcrumbs graph is represented in the response"
       ],
       "linked_requirements": ["REQ-003"],
       "evidence_required": ["command-log"]
@@ -59,13 +59,13 @@
     },
     {
       "id": "SCN-004",
-      "title": "The demo survives a dead network",
+      "title": "The internal-memory check has no literature-service dependency",
       "kind": "edge_case",
       "mode": "public",
-      "description": "The literature check hits a live external API during a live demo at 16:00. Assume the wifi fails, because it will.",
-      "preconditions": ["A literature query has been run once and cached into external_literature"],
-      "steps": ["Disable the network", "Re-run the same literature query"],
-      "expected": ["Cached results are returned from the graph store", "No unhandled exception reaches the host"],
+      "description": "Breadcrumbs does not perform general literature research, so its internal-memory path has no literature-service dependency.",
+      "preconditions": [],
+      "steps": ["Run check_duplication with no network", "Inspect the result and graph schema"],
+      "expected": ["The result reports only the internal graph", "No external literature cache table or client is required"],
       "linked_requirements": ["REQ-009"],
       "evidence_required": ["command-log"]
     }

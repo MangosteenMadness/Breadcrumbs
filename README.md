@@ -54,12 +54,16 @@ own schemas and templates, and the validator is a Python port so this stays a No
 ## Breadcrumbs MCP server
 
 The MCP server is a thin adapter over the same `ingestion/breadcrumbs.db` used by the ingestion
-pipeline. It does not create a second database or schema. It exposes two tools:
+pipeline. It does not create a second database or schema. It exposes five tools:
 
-- `write(record)` validates and inserts one reviewed finding using
+- `check_duplication(hypothesis_text, limit)` searches the internal findings graph and reports only
+  what was found there. General literature research remains the host agent's responsibility.
+- `write_finding(record)` validates and inserts one reviewed finding using the shared gate in
   `ingestion/write_findings.py`.
-- `read(column, value)` performs an allowlisted, parameterized equality query against the
-  `findings` table.
+- `recall_findings(query, limit)` returns locally matched findings, graph edges, and cached papers.
+- `render_wiki(finding_ids, title)` generates a cited, read-only Markdown view of the graph.
+- `read(column, value)` performs an allowlisted exact query for callers that already know a stored
+  field and canonical value.
 
 Install and run over stdio:
 
@@ -79,7 +83,9 @@ Set `BREADCRUMBS_DB` to override the default `ingestion/breadcrumbs.db` path.
 
 The MCP accepts `created_at` and `source_session` as read aliases for the physical
 `timestamp` and `source_session_id` columns. Writes use the reviewed extraction shape in
-`schema/example_finding_extraction.json`; `id` and `created_at` are optional for MCP writes.
+`schema/example_finding_extraction.json`; `id` and `created_at` are optional. The checked public
+contract is generated at `schema/mcp_contracts.schema.json`, and the UI-compatible HTTP seam is
+`POST http://127.0.0.1:8000/check_duplication`.
 
 The server publishes initialization and tool guidance telling agents when to read and write,
 how to summarize confirmed/in-progress/abandoned work, and how to avoid novelty or causality
