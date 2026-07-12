@@ -195,15 +195,15 @@
     {
       "id": "REQ-016",
       "kind": "command",
-      "detail": "prepare_memory_diff idempotently captures exact live host turns, derives source evidence and deterministic prior/posterior context, and creates no knowledge row before approval",
-      "command": "PYTHONPATH=src .venv/bin/python -m unittest tests.test_memory_diff_preparation",
+      "detail": "prepare_memory_diff supports independently reviewable distinct candidates without a hard cap, reuses exact live source snapshots, derives deterministic evidence and prior/posterior context, and creates no knowledge row before approval",
+      "command": "PYTHONPATH=src .venv/bin/python -m unittest discover -s tests",
       "cwd": ".",
-      "startedAt": "2026-07-12T19:47:27Z",
-      "finishedAt": "2026-07-12T19:48:31Z",
-      "logPath": ".spec/evidence/research-memory-tools/live-context-002/live-context.log",
-      "artifactHash": "bd7dea030d0f0725c83581c62069064bb12b32579fb76a425efa198e45de4368",
+      "startedAt": "2026-07-12T21:35:09Z",
+      "finishedAt": "2026-07-12T21:35:12Z",
+      "logPath": ".spec/evidence/research-memory-tools/turn-writeback-trigger-001/turn-writeback-trigger.log",
+      "artifactHash": "da7812c343015934fb49c976d5476d9edce082b817a4f1fb6f89e55a67d9a9b9",
       "satisfied": true,
-      "summary": "Seven focused tests passed: exact live turns are captured without sync, retries reuse one content-addressed source snapshot, preparation creates no knowledge row, approval persists the decision, and a fresh store retrieves it. The full 124-test suite, validator, lock check, and UI build also passed."
+      "summary": "The full 125-test suite and setupref validation passed. The MCP and host skill now run a turn-level write-back check before analysis or web lookup, treat settled corrections as independently reviewable even when the replacement choice is open, and retain independently approved bounded review batches without a hard candidate cap."
     }
   ],
   "complete": false

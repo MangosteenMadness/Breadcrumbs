@@ -117,7 +117,7 @@
     },
     {
       "id": "REQ-016",
-      "text": "prepare_memory_diff lets the host capture relevant exact live turns and derive a reproducible Memory Diff from a natural correction or decision without asking the researcher to sync or provide conversation text, message IDs, an exact quote, belief samples, an elicitation model, or a run ID. Identical calls idempotently reuse one content-addressed source snapshot and return exact evidence, before/after context packets, fixed-label elicitation instructions, provenance, and a write template, while no knowledge item exists before explicit approval.",
+      "text": "prepare_memory_diff lets the host derive any number of distinct, independently reviewable Memory Diffs from relevant exact live turns without asking the researcher to sync or provide conversation text, message IDs, exact quotes, belief samples, an elicitation model, or a run ID. Calls over identical context reuse one content-addressed source snapshot while distinct candidates receive separate deterministic drafts, evidence, before/after packets, provenance, and write templates. Before research, web lookup, or response, host instructions require a turn-level check for explicit corrections, decisions, constraints, exceptions, abandoned approaches, and belief revisions; a settled correction remains independently reviewable even when its replacement choice is unresolved. The host deduplicates overlapping propositions and presents a default review batch of three without treating it as an extraction or persistence cap; no candidate becomes a knowledge item before its own explicit approval.",
       "coverage": "automated_check",
       "command": "PYTHONPATH=src .venv/bin/python -m unittest tests.test_memory_diff_preparation"
     }

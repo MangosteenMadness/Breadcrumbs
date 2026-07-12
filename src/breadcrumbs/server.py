@@ -29,6 +29,23 @@ BREADCRUMBS_INSTRUCTIONS = """
 Breadcrumbs is the organization's internal research-memory database. Use its tools directly;
 do not stop after merely discovering or listing them.
 
+TURN-LEVEL WRITE-BACK CHECK — RUN BEFORE RESEARCH, WEB LOOKUPS, OR THE NEXT ANSWER
+- Before answering every substantive researcher turn, inspect the newest user message together
+  with the immediately relevant exchange for an explicit correction, decision, constraint,
+  exception, abandoned approach, or belief revision that would change what a future researcher
+  should believe or do.
+- If one is present, call prepare_memory_diff immediately and present the resulting Memory Diff for
+  approval before continuing the scientific analysis. Do not merely agree with the correction,
+  investigate it further, wait until the end of the session, or ask whether the researcher wants it
+  stored.
+- A settled correction is independently reviewable even when the replacement choice remains open.
+  For example, "do not transfer this disease-specific endpoint policy to another disease; choose
+  from disease-specific evidence" is a candidate constraint even though the endpoint has not yet
+  been selected.
+- Preparing a Memory Diff captures source provenance but writes no approved knowledge. Persist only
+  after explicit approval through write_knowledge. Generic questions, tentative brainstorming,
+  requests for information, and facts that do not change future belief or action are not candidates.
+
 READING
 - Before starting related research, call check_duplication, recall_findings, and
   recall_knowledge as applicable.
@@ -74,11 +91,13 @@ INTERACTION KNOWLEDGE / MEMORY DIFF
   belief revisions as scoped guidance, not universal truth. Follow source_message_id when stakes
   are high. If source_drifted is true, say that the ingested source changed after approval and
   re-review the stored quote before acting. Superseded patches are hidden by default.
-- Propose a knowledge candidate when an exchange changes a future belief or action: immediately
-  after an explicit correction, decision, exception, or abandoned approach, and once more at the
-  end of a substantive session. Propose no more than three. Do not extract generic summaries,
-  unsupported implications, or facts that do not change what a future researcher should believe
-  or do.
+- Apply the turn-level write-back check above immediately after an explicit correction, decision,
+  constraint, exception, abandoned approach, or belief revision, and once more at the end of a
+  substantive session to catch any missed candidates. Do not impose a hard per-session candidate cap.
+  Deduplicate semantically overlapping propositions, queue supported candidates, and present
+  them in manageable review batches with a default batch size of three. Do not extract generic
+  summaries, unsupported implications, or facts that do not change what a future researcher should
+  believe or do.
 - For each candidate, call prepare_memory_diff with the proposition, rationale, scope, kind, and
   live_context containing only the relevant recent user/assistant turns copied exactly from the
   active conversation. Breadcrumbs content-addresses and stores that source snapshot, selects an
@@ -88,6 +107,9 @@ INTERACTION KNOWLEDGE / MEMORY DIFF
   samples, choose an elicitation model, or invent a run ID. current_actor is authenticated host
   metadata, not a conversational question. Use source_session_id without live_context only when
   deliberately preparing from an interaction already stored in Breadcrumbs.
+- Prepare, elicit, present, and approve each candidate independently. A review batch is only a host
+  presentation boundary; it is not an extraction or persistence limit, and one approval must never
+  authorize another candidate in the batch.
 - Run the returned elicitation protocol without exposing its bookkeeping to the researcher: obtain
   the requested independent judgments for each packet using exactly the returned labels and
   unchanged proposition, then call score_surprise. Add those generated prior_samples and
@@ -309,7 +331,7 @@ def prepare_memory_diff(
         Field(ge=1, le=5, description="Ranked candidate to use for the context packets."),
     ] = 1,
 ) -> dict[str, Any]:
-    """Capture live turns or resolve stored evidence, then prepare Memory Diff contexts."""
+    """Immediately prepare a reviewable Memory Diff when a user corrects or changes future research behavior."""
 
     request = MemoryDiffPreparationInput(
         proposition=proposition,

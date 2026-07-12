@@ -74,18 +74,24 @@
       "title": "A surprising interaction becomes approved organizational knowledge",
       "kind": "happy_path",
       "mode": "public",
-      "description": "A researcher states a correction or decision naturally. The host infers one concise knowledge candidate, and Breadcrumbs supplies the exact source evidence, before/after context, and reproducible elicitation protocol needed to quantify and review it. Only the researcher's approved scientific version is persisted.",
+      "description": "A researcher states corrections or decisions naturally. The host infers distinct source-supported knowledge candidates, deduplicates overlapping propositions, and Breadcrumbs supplies separate exact evidence, before/after context, and reproducible elicitation protocols. Candidates are presented in manageable batches and only individually approved scientific versions are persisted.",
       "preconditions": ["The host can pass the relevant recent conversation turns to the MCP tool"],
       "steps": [
-        "Call prepare_memory_diff with the host-inferred proposition, rationale, scope, optional kind, and exact relevant live turns",
-        "Run the returned fixed-label prior and posterior elicitation packets for the specified replicate count, then call score_surprise with those generated samples",
-        "Show the proposition, exact quote, action change, and calculated metrics to the researcher",
-        "After explicit approval, call write_knowledge",
+        "Before continuing analysis or web lookup, inspect the newest user turn and its immediately relevant context for an explicit knowledge-changing statement",
+        "Infer every distinct candidate that changes a future belief or action, and deduplicate semantically overlapping propositions",
+        "For each candidate, call prepare_memory_diff with its proposition, rationale, scope, optional kind, and exact relevant live turns",
+        "Run each candidate's returned fixed-label prior and posterior elicitation packets for the specified replicate count, then call score_surprise with those generated samples",
+        "Show a manageable review batch, defaulting to three candidates, with a separate proposition, exact quote, action change, and calculated metrics for each",
+        "After each candidate's explicit approval, call write_knowledge separately",
         "Recall it in a fresh session using its topic and scope"
       ],
       "expected": [
+        "A settled correction is prepared for review immediately even when its replacement choice remains unresolved",
         "The researcher is never asked to sync, transcribe, identify, or quote the thread, or to provide belief samples, model metadata, or a run ID",
         "The exact live turns are content-addressed once, and the prior context excludes the selected evidence while the posterior context includes it",
+        "Multiple distinct candidates over the same exact live context reuse one source snapshot but receive separate deterministic drafts",
+        "The default review batch size does not prevent additional distinct candidates from being queued and reviewed later",
+        "Approving or skipping one candidate has no persistence effect on any other candidate in the batch",
         "The score is reproducible from the stored samples",
         "The stored metrics are server-calculated rather than caller-supplied",
         "Recall returns the approved item with source provenance even when the fresh host adds an unknown inferred scope key",
@@ -163,7 +169,7 @@
       "description": "The host converts ordinary scientific dialogue into a reviewable candidate without turning provenance plumbing into a researcher form.",
       "preconditions": ["The correction and its relevant context are visible to the host agent"],
       "steps": [
-        "Infer one candidate proposition, rationale, and scope from the conversation",
+        "Choose one distinct candidate from the pending review queue for this per-candidate preparation scenario",
         "Call prepare_memory_diff with exact relevant live turns but without source identifiers, a quote, samples, a model, or a run ID",
         "Repeat the same call and inspect the selected source, alternatives, and elicitation packets",
         "Inspect the database before any approval write"

@@ -7,6 +7,25 @@ description: Automatically use Breadcrumbs internal research memory before answe
 
 Use the enabled `breadcrumbs` MCP connector as the organization's internal research memory. Prefer internal evidence before external context. Do not treat the database as a literature database or infer novelty from missing rows.
 
+## Run the write-back check before answering
+
+Before answering every substantive researcher turn, inspect the newest user message together with
+the immediately relevant exchange. If it contains an explicit correction, decision, constraint,
+exception, abandoned approach, or belief revision that would change what a future researcher should
+believe or do, call `breadcrumbs:prepare_memory_diff` immediately and present the resulting Memory
+Diff for approval before continuing the scientific analysis or starting a web lookup.
+
+Do not merely agree with the change, research it further, wait until the end of the session, or ask
+whether the researcher wants it stored. Preparing the diff captures source provenance but does not
+approve or persist the candidate. `breadcrumbs:write_knowledge` still requires explicit approval of
+that exact diff.
+
+A settled correction is independently reviewable even when the replacement choice remains open.
+For example, “do not transfer this disease-specific endpoint policy to another disease; choose from
+disease-specific evidence” is a candidate constraint even though the endpoint has not yet been
+selected. Generic questions, tentative brainstorming, requests for information, and facts that do
+not change future belief or action are not candidates.
+
 ## Decide when to check
 
 Check Breadcrumbs before answering a request that:
@@ -130,35 +149,42 @@ be reported as separate stored facts; do not add a post-hoc power interpretation
 contacting a person or propose follow-up work unless the researcher asks for recommendations. Do
 not narrate tool discovery or internal reasoning in the final answer.
 
-## Capture interaction knowledge after approval
+## Prepare interaction knowledge before approval
 
-When an exchange changes what a future researcher should believe or do, propose at most one
-concise Memory Diff immediately after the correction, decision, exception, or abandoned approach.
-Generic summaries and unsupported implications are not candidates.
+Apply the turn-level write-back check before continuing the response. When an exchange changes what
+a future researcher should believe or do, identify every distinct,
+source-supported candidate implied by an explicit correction, decision, constraint, exception,
+abandoned approach, or belief revision. Do not impose a hard per-session candidate cap. Deduplicate
+semantically overlapping propositions and exclude generic summaries and unsupported implications.
+Queue supported candidates and present them in manageable review batches, using three as the
+default presentation batch size rather than as an extraction or persistence limit.
 
-Infer one concise proposition, rationale, scope, and optional kind from the scientific exchange,
-then immediately call `breadcrumbs:prepare_memory_diff` with `live_context` containing only the
-relevant recent user and assistant turns copied exactly from the active conversation. Do not
-paraphrase those turns or include hidden reasoning/tool traces. Do not ask the researcher to sync,
-transcribe, identify, or quote the thread, or to provide belief samples, an elicitation model, or a
-run ID. Pass `current_actor` only from authenticated host context. Use `source_session_id` without
-`live_context` only when deliberately preparing from an interaction already stored in Breadcrumbs.
-The tool content-addresses live source turns and supplies exact evidence, bounded alternatives,
-before/after packets, fixed labels, approved model, deterministic run ID, author hint, and partial
-record template.
+For each distinct candidate, infer one concise proposition, rationale, scope, and optional kind,
+then call `breadcrumbs:prepare_memory_diff` with `live_context` containing only the relevant recent
+user and assistant turns copied exactly from the active conversation. Do not paraphrase those turns
+or include hidden reasoning/tool traces. Do not ask the researcher to sync, transcribe, identify,
+or quote the thread, or to provide belief samples, an elicitation model, or a run ID. Pass
+`current_actor` only from authenticated host context. Use `source_session_id` without `live_context`
+only when deliberately preparing from an interaction already stored in Breadcrumbs. The tool
+content-addresses live source turns and supplies exact evidence, bounded alternatives, before/after
+packets, fixed labels, approved model, deterministic run ID, author hint, and partial record
+template. Multiple candidates grounded in the same exact live context reuse the same source
+snapshot while retaining separate draft IDs and records.
 
-Review the returned source selection and warning. If no live or stored span supports the candidate,
-do not invent provenance or write knowledge. Never tell the researcher to perform ingestion. For a
-supported candidate, execute the returned prior and posterior elicitation packets independently for
-the specified replicate count, using exactly the returned proposition and label vocabulary. Do not
-invent judgments, substitute another model, or create a run ID. Pass the observed labels to
-`breadcrumbs:score_surprise`, then show the scientific Memory Diff and calculated belief shift and
-Bayesian surprise as measures of belief movement—not importance or originality.
+Review each returned source selection and warning. If no live or stored span supports a candidate,
+discard that candidate rather than inventing provenance or writing knowledge. Never tell the
+researcher to perform ingestion. For every supported candidate, execute its returned prior and
+posterior elicitation packets independently for the specified replicate count, using exactly that
+candidate's proposition and label vocabulary. Do not invent judgments, substitute another model,
+or create a run ID. Pass the observed labels to `breadcrumbs:score_surprise`, then show the
+scientific Memory Diff and calculated belief shift and Bayesian surprise as measures of belief
+movement—not importance or originality.
 
 Do not call `breadcrumbs:write_knowledge` until a person explicitly approves that exact diff.
-Supply the approver through the separate `approved_by` argument. If the person edits or declines
-it, do not persist the unapproved version. The researcher reviews scientific content; the MCP and
-host carry the provenance and elicitation mechanics.
+Supply the approver through the separate `approved_by` argument. Review and approve every candidate
+independently; approval of one candidate in a batch never approves another. If the person edits or
+declines a candidate, do not persist its unapproved version. The researcher reviews scientific
+content; the MCP and host carry the provenance and elicitation mechanics.
 
 ## Write reviewed findings only
 

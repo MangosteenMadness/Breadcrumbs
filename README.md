@@ -112,9 +112,9 @@ BREADCRUMBS_TRANSPORT=http .venv/bin/breadcrumbs-mcp
 
 The HTTP MCP endpoint is `http://127.0.0.1:8000/mcp`; health is available at `/health`.
 The backend exposes equivalent REST seams at `/check_duplication`, `/knowledge/prepare`,
-`/knowledge/score`, `/knowledge`, `/knowledge/recall`, and `/experts/find`; the current browser demo
-uses the duplication, scoring, approval, recall, and expertise seams. The checked public contract
-is generated at `schema/mcp_contracts.schema.json`.
+`/knowledge/score`, `/knowledge`, `/knowledge/recall`, and `/experts/find`. The current browser demo
+uses only the duplication seam; interaction knowledge and evidence-backed expertise remain agent
+host capabilities. The checked public contract is generated at `schema/mcp_contracts.schema.json`.
 Set `BREADCRUMBS_DB` to override the default `ingestion/breadcrumbs.db` path. Dense retrieval is
 enabled by default with `BAAI/bge-small-en-v1.5`; set `BREADCRUMBS_EMBEDDINGS=0` to disable it or
 `BREADCRUMBS_EMBEDDING_MODEL` to an explicitly reviewed local FastEmbed model. The first start
@@ -167,6 +167,4 @@ npm run dev            # http://localhost:3000
 
 Works standalone out of the box against a seeded mock. To point it at the real backend, set
 `BREADCRUMBS_MCP_URL` in `ui/.env.local` (see [`ui/README.md`](ui/README.md) for the expected
-response shape). The Memory Diff review additionally requires
-`BREADCRUMBS_API_URL=http://127.0.0.1:8000`; unlike duplication lookup, an approval write has no
-mock-success fallback.
+response shape).

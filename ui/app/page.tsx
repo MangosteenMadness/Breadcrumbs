@@ -14,7 +14,6 @@ import {
   type Finding,
 } from "@/lib/data";
 import { SESSIONS_WITH_CHARTS, sessionForFinding, type Session } from "@/lib/sessions";
-import { MemoryDiffCard } from "./memory-diff";
 import { findExpert, buildExpertMarkdown } from "@/lib/expert_finder";
 import { SessionTranscript } from "./transcript";
 
@@ -46,7 +45,6 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [highlight, setHighlight] = useState<string[]>([]);
   const [openSession, setOpenSession] = useState<Session | null>(null);
-  const [reviewingMemory, setReviewingMemory] = useState(false);
 
   const streamRef = useRef<HTMLDivElement>(null);
   const idRef = useRef(0);
@@ -224,14 +222,8 @@ export default function Home() {
       <main className="col chat">
         <div className="chat-head">
           <h2>Retrace</h2>
-          <div className="chat-head-actions">
-            <div className="sesstag">
-              <i />New session · Dr. Chen · nothing in context
-            </div>
-            <button className="memory-review-btn" onClick={() => setReviewingMemory(true)}>
-              <span aria-hidden>◇</span>
-              Review memory diff
-            </button>
+          <div className="sesstag">
+            <i />New session · Dr. Chen · nothing in context
           </div>
         </div>
 
@@ -344,7 +336,6 @@ export default function Home() {
       {openSession && (
         <SessionTranscript session={openSession} onClose={() => setOpenSession(null)} />
       )}
-      <MemoryDiffCard open={reviewingMemory} onClose={() => setReviewingMemory(false)} />
     </div>
   );
 }

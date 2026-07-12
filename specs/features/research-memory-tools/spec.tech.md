@@ -233,12 +233,26 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
   remains explicitly missing; Breadcrumbs does not infer it from the transcript. The host executes
   the returned elicitation protocol, presents the scientific Memory Diff, and calls
   `write_knowledge` only after explicit approval. Source capture is not knowledge approval.
+  A conversation may yield any number of distinct, source-supported candidates; there is no hard
+  extraction or persistence cap. The host deduplicates semantically overlapping propositions,
+  queues supported candidates, and presents manageable review batches with a default batch size of
+  three. Batch size is a presentation setting only. Every candidate is prepared, elicited,
+  reviewed, and approved independently, and candidates grounded in the same exact `live_context`
+  reuse its content-addressed source snapshot. Before answering each substantive researcher turn,
+  the host checks the newest turn and its immediately relevant context for an explicit correction,
+  decision, constraint, exception, abandoned approach, or belief revision. It prepares a supported
+  candidate before continuing analysis or web lookup. A settled negative correction remains a
+  candidate when the replacement choice is unresolved; preparation is source capture, not approval.
 - **Data:** reads and idempotently inserts source snapshots in `chat_sessions`, `chat_messages`, and
   `chat_message_sections`; does not persist samples, candidates, or `knowledge_items`.
 - **Source:** `src/breadcrumbs/interaction_context.py`; `src/breadcrumbs/store.py`;
   `src/breadcrumbs/server.py`.
 - **Status:** built-at-parity.
-- **REQ-016:** A natural correction or decision can be captured and prepared directly from exact
-  live host turns without researcher-supplied sync, identifiers, quote, belief samples, model, or
-  run ID; repeated calls produce one stable source snapshot, exact evidence and before/after
-  packets, while no authoritative knowledge row exists before approval.
+- **REQ-016:** Natural corrections and decisions can produce any number of distinct, independently
+  reviewable candidates from exact live host turns without researcher-supplied sync, identifiers,
+  quotes, belief samples, model, or run ID. Calls over the same exact context reuse one stable source
+  snapshot while producing separate deterministic drafts and before/after packets; no authoritative
+  knowledge row exists before its own explicit approval. The host deduplicates overlapping
+  propositions and uses a default review batch size of three without treating it as a candidate cap.
+  Host instructions place an explicit write-back check before research, web lookup, or response and
+  treat settled corrections as candidates even when their replacement choice remains unresolved.

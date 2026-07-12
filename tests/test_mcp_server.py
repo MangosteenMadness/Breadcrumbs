@@ -59,8 +59,34 @@ class MCPContractTests(unittest.TestCase):
         try:
             sys.modules.pop("breadcrumbs.server", None)
             server = importlib.import_module("breadcrumbs.server")
-            self.assertNotIn("nov" + "el", server.BREADCRUMBS_INSTRUCTIONS.lower())
-            names = [tool.name for tool in asyncio.run(server.mcp.list_tools())]
+            instructions = server.BREADCRUMBS_INSTRUCTIONS.casefold()
+            self.assertNotIn("nov" + "el", instructions)
+            self.assertIn("turn-level write-back check", instructions)
+            self.assertIn("before research, web lookups, or the next answer", instructions)
+            self.assertIn("settled correction is independently reviewable", instructions)
+            self.assertLess(
+                instructions.index("turn-level write-back check"),
+                instructions.index("reading"),
+            )
+            self.assertIn("do not impose a hard per-session candidate cap", instructions)
+            self.assertIn("default batch size of three", instructions)
+            self.assertNotIn("Propose no more than three", server.BREADCRUMBS_INSTRUCTIONS)
+            host_skill = Path("skills/check-internal-biomedical-research-memory/SKILL.md").read_text(
+                encoding="utf-8"
+            )
+            host_skill_folded = host_skill.casefold()
+            self.assertIn("run the write-back check before answering", host_skill_folded)
+            self.assertIn("before continuing the scientific analysis", host_skill_folded)
+            self.assertIn("settled correction is independently reviewable", host_skill_folded)
+            self.assertLess(
+                host_skill_folded.index("run the write-back check before answering"),
+                host_skill_folded.index("decide when to check"),
+            )
+            self.assertIn("Do not impose a hard per-session candidate cap", host_skill)
+            self.assertIn("default presentation batch size", host_skill)
+            self.assertNotIn("propose at most one", host_skill.casefold())
+            registered_tools = asyncio.run(server.mcp.list_tools())
+            names = [tool.name for tool in registered_tools]
             self.assertEqual(
                 names,
                 [
@@ -76,6 +102,11 @@ class MCPContractTests(unittest.TestCase):
                     "find_experts",
                 ],
             )
+            prepare_tool = next(
+                tool for tool in registered_tools if tool.name == "prepare_memory_diff"
+            )
+            self.assertIn("Immediately prepare", prepare_tool.description)
+            self.assertIn("user corrects", prepare_tool.description)
             response = TestClient(server.app).post(
                 "/check_duplication", json={"hypothesis_text": "unmatched endpoint smoke test"}
             )

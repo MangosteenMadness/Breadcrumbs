@@ -194,6 +194,36 @@ class MemoryDiffPreparationTests(unittest.TestCase):
         self.assertIn("author", prepared["missing_record_fields"])
         self.assertNotIn("author", prepared["record_template"])
 
+    def test_distinct_candidates_have_no_hard_cap_and_reuse_one_live_snapshot(self) -> None:
+        propositions = [
+            "Use TCGA-CDR PFI as the primary endpoint for the exploratory BRCA screen.",
+            "Keep overall survival as a secondary sensitivity analysis for the BRCA screen.",
+            "Do not discard the immune-exclusion signature from a null overall-survival result alone.",
+            "Treat the endpoint choice as specific to exploratory TCGA-BRCA survival analysis.",
+            "Interpret PFI and overall survival as different evidence roles in this analysis.",
+            "Preserve the null overall-survival result as sensitivity evidence rather than a primary endpoint decision.",
+        ]
+        draft_ids = set()
+        source_session_ids = set()
+        for proposition in propositions:
+            prepared = self.store.prepare_memory_diff(
+                **self._live_request(proposition=proposition)
+            )
+            draft_ids.add(prepared["draft_id"])
+            source_session_ids.add(prepared["selected_evidence"]["source_session_id"])
+
+        self.assertEqual(len(draft_ids), len(propositions))
+        self.assertEqual(len(source_session_ids), 1)
+        connection = connect(self.path)
+        try:
+            live_sessions = connection.execute(
+                "SELECT COUNT(*) FROM chat_sessions WHERE id LIKE 'LIVE-%'"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        self.assertEqual(live_sessions, 1)
+        self.assertEqual(self._knowledge_count(), 0)
+
     def test_preparation_is_deterministic_and_host_actor_is_provenance(self) -> None:
         request = self._request(current_actor="Dr. Chen")
 
