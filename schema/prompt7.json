@@ -1,5 +1,4 @@
 {
-    "graph_data": {
       "findings": [
         {
           "id": "local_1",
@@ -35,5 +34,4 @@
         }
       ],
       "edges": []
-    }
   }

@@ -1,5 +1,4 @@
 {
-    "graph_data": {
       "findings": [
         {
           "id": "local_1",
@@ -13,12 +12,11 @@
           "reason": "Small cohort size (n=7 patients) resulted in all pairwise Wilcoxon comparisons (Tumor Edge vs. Tumor Islet, Stroma vs. Tumor Islet, Tumor Edge vs. Stroma) failing to reach significance after Bonferroni correction (all adj. p > 0.05), despite a consistent directional trend across patients.",
           "provenance": "MOSAIC-OV Visium spatial transcriptomics, n=7 HGSOC patients; CD8+ deconvolution fraction (t_cd8_deconv_sample_level_custom1_frac) compared across annotated regions via Wilcoxon paired tests with Bonferroni adjustment.",
           "resources": null,
-          "author": "Yousuf",
+          "author": "Unknown",
           "created_at": "2026-07-11T00:00:00Z",
           "source_session_id": "sess-mosaic-ov-001",
           "markdown": "**[INTERNAL]**\n### CD8+ T cell density gradient across tumor regions in HGSOC (underpowered)\n- **Disease**: HGSOC\n- **Status**: abandoned\n- **Effect**: Tumor Edge (0.005-0.040) > Stroma (0.007-0.032) > Tumor Islet (0.002-0.021); Tumor Edge vs. Tumor Islet adj. p=0.052, all other pairs n.s. after Bonferroni\n- **Entities**: CD8A, Tumor_Edge, Stroma, Tumor_Islet\n- **Reason**: n=7 cohort — no pairwise contrast reached significance after Bonferroni correction, despite a consistent directional trend across all patients\n\nA consistent Tumor Edge > Stroma > Tumor Islet gradient was observed across all 7 patients, biologically consistent with immune exclusion (CD8+ enriched at the invasive front, depleted within tumor nests). Do NOT report as a confirmed significant result without expanding the cohort or switching to an exploratory/FDR framing explicitly."
         }
       ],
       "edges": []
-    }
   }
