@@ -30,7 +30,7 @@ class IngestionTests(unittest.TestCase):
 
     def test_upsert_replaces_previous_turns(self):
         with tempfile.TemporaryDirectory() as directory:
-            connection = connect(Path(directory) / "cairn.db")
+            connection = connect(Path(directory) / "breadcrumbs.db")
             upsert_session(connection, session_id="chat", url="https://example.test/chat/chat", title=None, raw_payload={}, messages=[
                 {"seq": 0, "role": "user", "content": "old"},
             ])
@@ -75,7 +75,7 @@ class IngestionTests(unittest.TestCase):
 
     def test_section_parent_edges_are_persisted(self):
         with tempfile.TemporaryDirectory() as directory:
-            connection = connect(Path(directory) / "cairn.db")
+            connection = connect(Path(directory) / "breadcrumbs.db")
             upsert_session(connection, session_id="chat", url="https://example.test/chat/chat", title=None,
                            raw_payload={}, messages=[{"seq": 0, "role": "assistant",
                                                       "content": "## Parent\nintro\n### Child\ndetail"}])
@@ -106,7 +106,7 @@ class IngestionTests(unittest.TestCase):
 
     def test_revisions_support_skipping_unchanged_chats(self):
         with tempfile.TemporaryDirectory() as directory:
-            connection = connect(Path(directory) / "cairn.db")
+            connection = connect(Path(directory) / "breadcrumbs.db")
             upsert_session(connection, session_id="chat", url="https://example.test/chat/chat", title="t",
                            raw_payload={}, messages=[{"seq": 0, "role": "user", "content": "q"}],
                            updated_at="2026-07-11T23:42:18Z")
@@ -115,7 +115,7 @@ class IngestionTests(unittest.TestCase):
 
     def test_ingesting_one_chat_does_not_disturb_another(self):
         with tempfile.TemporaryDirectory() as directory:
-            connection = connect(Path(directory) / "cairn.db")
+            connection = connect(Path(directory) / "breadcrumbs.db")
             upsert_session(connection, session_id="chat-a", url="https://example.test/chat/chat-a", title="A",
                            raw_payload={}, messages=[{"seq": 0, "role": "user", "content": "first"}])
             upsert_session(connection, session_id="chat-b", url="https://example.test/chat/chat-b", title="B",
@@ -129,7 +129,7 @@ class IngestionTests(unittest.TestCase):
 
     def test_one_session_can_write_multiple_findings_and_an_edge(self):
         with tempfile.TemporaryDirectory() as directory:
-            connection = connect(Path(directory) / "cairn.db")
+            connection = connect(Path(directory) / "breadcrumbs.db")
             upsert_session(connection, session_id="sess-2027", url="https://example.test/chat/sess-2027", title=None,
                            raw_payload={}, messages=[{"seq": 0, "role": "user", "content": "question"}])
             write_payload(connection, {"findings": [

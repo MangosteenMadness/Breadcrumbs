@@ -3,7 +3,7 @@ id: survival-analysis-tech
 title: "Survival Analysis — technical reference"
 type: spec
 status: draft
-domain: cairn
+domain: breadcrumbs
 audience: engineers, Breadcrumbs team
 parity_of: ./components.md
 registry: ./components.md

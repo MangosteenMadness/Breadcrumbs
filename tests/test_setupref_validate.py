@@ -1,7 +1,7 @@
 """The spec tree must stay valid, and the parity gate must actually bite.
 
 The two regex tests below are not academic. Both cases fail against the upstream AgenticFlow
-validator, and both appear throughout Cairn's real specs — findings are named F-093 / F-118,
+validator, and both appear throughout Breadcrumbs' real specs — findings are named F-093 / F-118,
 and spec.tech.md is built out of `file:line` citations.
 """
 

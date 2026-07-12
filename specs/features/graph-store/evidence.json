@@ -69,7 +69,7 @@
     {
       "id": "REQ-006",
       "kind": "command",
-      "detail": "Migration is idempotent and preserves row counts in the committed cairn.db",
+      "detail": "Migration is idempotent and preserves row counts in the committed breadcrumbs.db",
       "command": "python -m pytest tests/test_migration.py -k idempotent",
       "cwd": ".",
       "startedAt": "",

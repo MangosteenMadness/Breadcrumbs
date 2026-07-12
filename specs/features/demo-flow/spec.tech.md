@@ -3,7 +3,7 @@ id: demo-flow-tech
 title: "Demo Flow — technical reference"
 type: spec
 status: draft
-domain: cairn
+domain: breadcrumbs
 audience: engineers, biologists, Breadcrumbs team
 parity_of: ./components.md
 registry: ./components.md
