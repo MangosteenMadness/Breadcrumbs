@@ -63,10 +63,17 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 ### BC-GRAPH-004 — K Pro chat provenance
 - **Behavior:** Raw K Pro sessions are ingested and stored locally, with each answer's visible
   `##`/`###` Markdown sections extracted as graph-ready categories. No chat text is sent to an
-  external LLM during ingestion. A finding points back at the session it was drawn from.
-- **Data:** `chat_sessions`, `chat_messages`, `chat_message_sections`, `ingestion_errors`. Parse
-  failures are recorded, never fabricated into placeholder turns.
-- **Source:** `schema/graph_schema.sql:46-89`; `ingestion/store.py:46-149`; `ingestion/ingest_chat.py`.
+  external LLM during ingestion. A finding points back at the session it was drawn from. The
+  human-readable `.md` transcript (`write_transcript`) shows each turn's own `seq` and, when K Pro
+  supplied one, its `created_at` timestamp, plus the session's `researcher` if one was named at
+  ingest time. K Pro's payload never carries a person's identity (only a `role` of user/assistant),
+  so `researcher` is supplied by the caller (`ingest_chat.py --author`, or the `KPRO_RESEARCHER` env
+  var) — never scraped or guessed. A re-ingest that omits it keeps whatever was already stored
+  rather than blanking it.
+- **Data:** `chat_sessions` (including `researcher`), `chat_messages`, `chat_message_sections`,
+  `ingestion_errors`. Parse failures are recorded, never fabricated into placeholder turns.
+- **Source:** `schema/graph_schema.sql:46-89`; `ingestion/store.py` (`upsert_session`,
+  `write_transcript`); `ingestion/ingest_chat.py`.
 - **Status:** built-at-parity.
 - **REQ-004:** The ingestion suite passes.
 

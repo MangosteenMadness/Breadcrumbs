@@ -13,6 +13,8 @@ import {
   type DuplicationResult,
   type Finding,
 } from "@/lib/data";
+import { SESSIONS_WITH_CHARTS, sessionForFinding, type Session } from "@/lib/sessions";
+import { SessionTranscript } from "./transcript";
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -41,6 +43,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [input, setInput] = useState("");
   const [highlight, setHighlight] = useState<string[]>([]);
+  const [openSession, setOpenSession] = useState<Session | null>(null);
 
   const streamRef = useRef<HTMLDivElement>(null);
   const idRef = useRef(0);
@@ -142,6 +145,20 @@ export default function Home() {
           ))}
         </div>
 
+        <div className="side-sub">Replay a real run</div>
+        <div>
+          {SESSIONS_WITH_CHARTS.map((s) => (
+            <button className="hist histbtn" key={s.id} onClick={() => setOpenSession(s)}>
+              <div className="ht">{s.title || "K Pro session"}</div>
+              <div className="hm">
+                {s.counts.plots} chart{s.counts.plots === 1 ? "" : "s"} · {s.counts.tables} table
+                {s.counts.tables === 1 ? "" : "s"}
+                {s.counts.omitted ? ` · ${s.counts.omitted} omitted` : ""}
+              </div>
+            </button>
+          ))}
+        </div>
+
         <div className="side-sub">Explore MOSAIC</div>
         <div>
           {groups.map(([cat, list]) => (
@@ -211,7 +228,7 @@ export default function Home() {
                 </div>
               );
             }
-            return <AnswerBlock key={it.id} res={it.res} />;
+            return <AnswerBlock key={it.id} res={it.res} onOpenSession={setOpenSession} />;
           })}
         </div>
 
@@ -278,6 +295,10 @@ export default function Home() {
           </div>
         </div>
       </aside>
+
+      {openSession && (
+        <SessionTranscript session={openSession} onClose={() => setOpenSession(null)} />
+      )}
     </div>
   );
 }
@@ -304,7 +325,41 @@ function ThinkBlock({ item }: { item: Extract<StreamItem, { kind: "think" }> }) 
 }
 
 /* ---------------- answer block ---------------- */
-function AnswerBlock({ res }: { res: DuplicationResult }) {
+function AnswerBlock({
+  res,
+  onOpenSession,
+}: {
+  res: DuplicationResult;
+  onOpenSession: (s: Session) => void;
+}) {
+  // Any matched finding that was actually answered in a stored K Pro run gets a link to replay
+  // that run — the duplication check says "someone did this"; the transcript shows what they saw.
+  const runs: { label: string; session: Session }[] = [];
+  const seen = new Set<string>();
+  (res.matches ?? []).forEach((m) => {
+    const session = sessionForFinding(m.hypothesis_text);
+    if (session && !seen.has(session.id)) {
+      seen.add(session.id);
+      runs.push({ label: m.id, session });
+    }
+  });
+
+  const runLinks = runs.length ? (
+    <div className="runlinks">
+      {runs.map(({ label, session }) => (
+        <button className="runlink" key={session.id} onClick={() => onOpenSession(session)}>
+          <span className="runlink-ic" aria-hidden>
+            ▸
+          </span>
+          View the actual K Pro run
+          <span className="runlink-meta mono">
+            {label} · {session.counts.plots} chart{session.counts.plots === 1 ? "" : "s"}
+          </span>
+        </button>
+      ))}
+    </div>
+  ) : null;
+
   // When the backend sends a markdown write-up, render it as the answer body.
   if (res.markdown) {
     return (
@@ -313,6 +368,7 @@ function AnswerBlock({ res }: { res: DuplicationResult }) {
           <div className="md">
             <Markdown>{res.markdown}</Markdown>
           </div>
+          {runLinks}
         </div>
       </div>
     );
@@ -384,6 +440,7 @@ function AnswerBlock({ res }: { res: DuplicationResult }) {
             <span dangerouslySetInnerHTML={{ __html: res.external }} />
           </div>
         )}
+        {runLinks}
         <div className="calib">
           {"// no claim of novelty — Breadcrumbs reports what it found on your trail, and what it didn't."}
           <br />

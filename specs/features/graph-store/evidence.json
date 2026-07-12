@@ -51,7 +51,7 @@
       "logPath": ".spec/evidence/graph-store/pending/ingest.log",
       "artifactHash": "",
       "satisfied": false,
-      "summary": "Suite passes locally (6 tests) but has not yet been captured as pointer evidence."
+      "summary": "Suite passes locally (15 tests) but has not yet been captured as pointer evidence."
     },
     {
       "id": "REQ-005",
