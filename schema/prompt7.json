@@ -1,7 +1,7 @@
 {
       "findings": [
         {
-          "id": "local_1",
+          "id": "p7_local_1",
           "source_type": "internal",
           "category": "blca-tp53-immune-composition",
           "disease": "BLCA",
@@ -17,7 +17,7 @@
           "source_session_id": "sess-2027"
         },
         {
-          "id": "local_2",
+          "id": "p7_local_2",
           "source_type": "internal",
           "category": "blca-tp53-spatial-architecture",
           "disease": "BLCA",
