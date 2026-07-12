@@ -55,7 +55,7 @@ SCENARIO_ID_RE = re.compile(r"^SCN-[0-9]{3}$")
 
 # Tokens that match COMPONENT_ID_RE but are not component IDs.
 #
-# `F` is the one that matters here and is absent upstream: Cairn's findings are named
+# `F` is the one that matters here and is absent upstream: Breadcrumbs' findings are named
 # F-093 / F-118 and are cited constantly throughout these specs. Without this exclusion,
 # every mention of a finding is scraped as a phantom component and parity fails with an
 # error that makes no sense to whoever reads it.
