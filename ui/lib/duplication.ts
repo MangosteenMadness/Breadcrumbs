@@ -83,6 +83,11 @@ function buildMarkdown(question: string, matches: Match[]): string {
     lines.push("");
   });
   lines.push("---");
+  lines.push(`#### Published record`);
+  lines.push(
+    `Related literature exists on this topic. What's above is _internal_ — work inside your org that no published search could surface.`,
+  );
+  lines.push("");
   lines.push(
     `_Internal trail checked first · ${F.length} markers searched · published record checked second._`,
   );

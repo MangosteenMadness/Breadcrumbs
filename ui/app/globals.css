@@ -92,6 +92,7 @@ button{font-family:inherit}
 .md{background:var(--paper);border:1px solid var(--hair);border-radius:12px;padding:15px 17px;font-size:14px;color:var(--ink2);line-height:1.6}
 .md h2{font-family:var(--display);font-size:17px;color:var(--ink);margin:0 0 8px;letter-spacing:-.01em}
 .md h3{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--moss);margin:14px 0 5px;font-weight:500}
+.md h4{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--moss);margin:10px 0 4px;font-weight:500}
 .md p{margin:0 0 9px}
 .md ul{margin:0 0 9px;padding-left:18px}
 .md li{margin:2px 0}
