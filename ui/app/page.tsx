@@ -633,6 +633,7 @@ function TrailGraph({
 }) {
   const active = highlight.length > 0;
   const hset = new Set(highlight);
+  const [hover, setHover] = useState<Finding | null>(null);
 
   // the retrace path: thread the matched markers in reveal order — grows
   // one segment at a time as `highlight` fills in.
@@ -640,6 +641,7 @@ function TrailGraph({
   const trailD = tpts.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" ");
 
   return (
+    <div className="graphwrap">
     <svg className={"graph" + (large ? " large" : "")} viewBox="0 0 380 520">
       <defs>
         <radialGradient id="tmglow" cx="45%" cy="34%" r="82%">
@@ -684,7 +686,15 @@ function TrailGraph({
         const fill = on ? (abandoned ? COL.abandoned : COL.match) : COL[f.st];
         const s = on ? 3.5 : live ? 3.0 : 2.7;
         return (
-          <g className={"gnode" + (dim ? " dim" : "")} key={f.id} onClick={() => onPick(f)}>
+          <g
+            className={"gnode" + (dim ? " dim" : "")}
+            key={f.id}
+            onClick={() => onPick(f)}
+            onMouseEnter={() => setHover(f)}
+            onMouseLeave={() => setHover((h) => (h === f ? null : h))}
+          >
+            {/* invisible hit target — bigger than the cairn so hover is easy to land */}
+            <circle cx={f.x} cy={f.y} r={11} fill="transparent" />
             <circle className="hoverhalo" cx={f.x} cy={f.y} r={7.5} fill={on ? COL.match : "#9BA694"} />
             {(on || live) && (
               <circle
@@ -707,10 +717,69 @@ function TrailGraph({
             <text x={f.x} y={f.y + 9.5} textAnchor="middle" className={"glabel" + (on ? " lit" : "")}>
               {f.id}
             </text>
-            <title>{`${f.id} · ${f.dis} · ${f.st}`}</title>
           </g>
         );
       })}
     </svg>
+
+    {hover && <NodeCard f={hover} large={large} />}
+    </div>
+  );
+}
+
+/* ---------------- node hover card ----------------
+   The proof-of-data panel for the demo: hover any marker and see the full
+   record behind it — the fields the UI renders, plus the raw JSON payload. */
+function NodeCard({ f, large }: { f: Finding; large: boolean }) {
+  // viewBox is 380 × 520; the svg fills the wrapper, so % maps node coords → pixels.
+  const leftPct = (f.x / 380) * 100;
+  const topPct = (f.y / 520) * 100;
+  const flipX = f.x > 190; // near the right edge → grow the card leftward
+  const flipY = f.y > 300; // near the bottom → grow it upward
+
+  const record = {
+    id: f.id,
+    status: f.st,
+    disease: f.dis,
+    category: f.cat,
+    author: f.au,
+    entities: f.ent,
+    hypothesis_text: f.q,
+    effect: f.eff,
+    ...(f.rz ? { reason_abandoned: f.rz } : {}),
+    coords: { x: f.x, y: f.y },
+  };
+
+  return (
+    <div
+      className={"nodecard" + (large ? " nc-large" : "")}
+      style={{
+        left: `${leftPct}%`,
+        top: `${topPct}%`,
+        transform: `translate(${flipX ? "calc(-100% - 16px)" : "16px"}, ${
+          flipY ? "calc(-100% + 14px)" : "-14px"
+        })`,
+      }}
+    >
+      <div className="nc-head">
+        <span className={"nc-badge nc-" + f.st}>{f.st.replace("_", " ")}</span>
+        <span className="nc-id mono">{f.id}</span>
+      </div>
+      <div className="nc-q">{f.q}</div>
+      <div className="nc-grid mono">
+        <span>disease</span>
+        <b>{f.dis}</b>
+        <span>author</span>
+        <b>{f.au}</b>
+        <span>category</span>
+        <b>{f.cat}</b>
+        <span>entities</span>
+        <b>{f.ent.length ? f.ent.join(", ") : "—"}</b>
+      </div>
+      <div className="nc-eff">{f.eff}</div>
+      {f.rz && <div className="nc-rz">⚑ {f.rz}</div>}
+      <div className="nc-json-lab mono">raw record</div>
+      <pre className="nc-json mono">{JSON.stringify(record, null, 2)}</pre>
+    </div>
   );
 }
