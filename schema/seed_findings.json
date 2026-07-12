@@ -1,5 +1,5 @@
 {
-  "_comment": "Cairn seed data. F-093 must be pre-loaded before the demo (Appendix A, Breadcrumbs.pdf). F-118 is NOT pre-seeded — it is written live in Beat 1; the template below shows its shape with {{ }} placeholders to be filled from the real TCGA LUAD run (Appendix B) by 19:00.",
+  "_comment": "Breadcrumbs seed data. F-093 must be pre-loaded before the demo (Appendix A, Breadcrumbs.pdf). F-118 is NOT pre-seeded — it is written live in Beat 1; the template below shows its shape with {{ }} placeholders to be filled from the real TCGA LUAD run (Appendix B) by 19:00.",
   "findings": [
     {
       "id": "F-093",
