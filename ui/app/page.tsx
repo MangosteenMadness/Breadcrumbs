@@ -45,6 +45,9 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [highlight, setHighlight] = useState<string[]>([]);
   const [openSession, setOpenSession] = useState<Session | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [activeCat, setActiveCat] = useState<string>("");
+  const [navOpen, setNavOpen] = useState(false);
 
   const streamRef = useRef<HTMLDivElement>(null);
   const idRef = useRef(0);
@@ -55,6 +58,16 @@ export default function Home() {
     const s = streamRef.current;
     if (s) s.scrollTop = s.scrollHeight;
   }, [items]);
+
+  // Esc closes the expanded trail
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
   // questions grouped by category for the "Explore MOSAIC" sidebar
   const groups = useMemo(() => {
@@ -134,7 +147,13 @@ export default function Home() {
       setHighlight([]);
     } else {
       setItems((prev) => [...prev, { kind: "answer", id: nextId(), res }]);
-      setHighlight((res.matches ?? []).map((mm) => mm.id).filter((id) => byId[id]));
+      // light the trail one marker at a time so it draws itself in
+      const ids = (res.matches ?? []).map((mm) => mm.id).filter((id) => byId[id]);
+      setHighlight([]);
+      for (let k = 0; k < ids.length; k++) {
+        await wait(260);
+        setHighlight(ids.slice(0, k + 1));
+      }
     }
     setBusy(false);
   }
@@ -150,12 +169,25 @@ export default function Home() {
     ? `// ${highlight.length} marker${highlight.length > 1 ? "s" : ""} on your path`
     : "// your org's explored ground";
 
+  // Explore MOSAIC: pick a topic on the left, its questions surface as chips in the chat
+  const currentCat = activeCat || groups[0]?.[0] || "";
+  const catList = groups.find(([c]) => c === currentCat)?.[1] ?? [];
+
   return (
-    <div className="app">
+    <div className={"app" + (navOpen ? " navopen" : "")}>
       {/* ================= SIDEBAR ================= */}
-      <aside className="col side">
+      <aside className={"col side" + (navOpen ? "" : " min")}>
+        <button
+          className="navtoggle"
+          onClick={() => setNavOpen((v) => !v)}
+          aria-label={navOpen ? "Collapse menu" : "Expand menu"}
+        >
+          {navOpen ? "«" : "☰"}
+        </button>
+        {navOpen && (
+          <>
         <div className="brand">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
             <path
               d="M3 20 C7 14, 5 9, 11 6 S 19 5, 21 3"
               stroke="#9BA694"
@@ -172,6 +204,19 @@ export default function Home() {
           <img className="brand-logo" src="/owkin-logo.svg" alt="Owkin" />
         </div>
 
+        <div className="side-sub">Explore MOSAIC</div>
+        <div className="catlist">
+          {groups.map(([cat]) => (
+            <button
+              className={"catbtn" + (cat === currentCat ? " on" : "")}
+              key={cat}
+              onClick={() => setActiveCat(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
         <div className="side-sub">Session history</div>
         <div>
           {HIST.map((h, i) => (
@@ -181,7 +226,6 @@ export default function Home() {
             </div>
           ))}
         </div>
-
         <div className="side-sub">Replay a real run</div>
         <div>
           {SESSIONS_WITH_CHARTS.map((s) => (
@@ -195,27 +239,8 @@ export default function Home() {
             </button>
           ))}
         </div>
-
-        <div className="side-sub">Explore MOSAIC</div>
-        <div>
-          {groups.map(([cat, list]) => (
-            <div className="qgroup" key={cat}>
-              <div className="qg-lab">{cat}</div>
-              {list.map((f) => (
-                <button
-                  className="qbtn"
-                  key={f.id}
-                  onClick={() => {
-                    setInput("");
-                    ask(f.q, f.id);
-                  }}
-                >
-                  {f.q.length > 92 ? f.q.slice(0, 92) + "…" : f.q}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
+          </>
+        )}
       </aside>
 
       {/* ================= CHAT ================= */}
@@ -270,6 +295,14 @@ export default function Home() {
         </div>
 
         <div className="composer">
+          <div className="chiprow">
+            <span className="chiprow-lab">{currentCat}</span>
+            {catList.map((f) => (
+              <button className="qchip" key={f.id} onClick={() => ask(f.q, f.id)}>
+                {f.q.length > 62 ? f.q.slice(0, 62) + "…" : f.q}
+              </button>
+            ))}
+          </div>
           <div className="cwrap">
             <input
               className="cin"
@@ -292,7 +325,17 @@ export default function Home() {
       <aside className="col gcol">
         <div className="gh">
           <h3>The trail</h3>
-          <span className="gc">22 markers</span>
+          <div className="gh-r">
+            <span className="gc">22 markers</span>
+            <button
+              className="gexpand"
+              onClick={() => setExpanded(true)}
+              title="Expand trail"
+              aria-label="Expand trail"
+            >
+              ⤢
+            </button>
+          </div>
         </div>
         <div className="gsub">{gstatus}</div>
 
@@ -335,6 +378,38 @@ export default function Home() {
 
       {openSession && (
         <SessionTranscript session={openSession} onClose={() => setOpenSession(null)} />
+      )}
+
+      {/* ================= FULLSCREEN TRAIL ================= */}
+      {expanded && (
+        <div className="trailmodal" onClick={() => setExpanded(false)}>
+          <div className="tm-inner" onClick={(e) => e.stopPropagation()}>
+            <div className="tm-head">
+              <h3>The trail</h3>
+              <div className="gsub">{gstatus}</div>
+            </div>
+            <button className="tm-close" onClick={() => setExpanded(false)} aria-label="Close">
+              ✕
+            </button>
+            <div className="tm-body">
+              <TrailGraph highlight={highlight} onPick={(f) => ask(f.q, f.id)} large />
+            </div>
+            <div className="tm-legend">
+              <span className="lrow">
+                <span className="d" style={{ background: "#657262" }} />confirmed
+              </span>
+              <span className="lrow">
+                <span className="d" style={{ background: "#C6862B" }} />matches your question
+              </span>
+              <span className="lrow">
+                <span className="d" style={{ background: "#3E7A5E" }} />in progress
+              </span>
+              <span className="lrow">
+                <span className="d" style={{ background: "#A7AFA2" }} />abandoned — dead end
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -489,18 +564,90 @@ function AnswerBlock({
 }
 
 /* ---------------- trail graph ---------------- */
+// a cairn — the stacked-stone marker hikers leave to mark a trail. Three
+// stones, centered on (x,y) so the graph edges still meet it cleanly.
+function Cairn({ x, y, s, fill }: { x: number; y: number; s: number; fill: string }) {
+  return (
+    <g>
+      <ellipse cx={x} cy={y + s * 0.95} rx={s} ry={s * 0.55} fill={fill} />
+      <ellipse cx={x} cy={y} rx={s * 0.72} ry={s * 0.46} fill={fill} />
+      <ellipse cx={x} cy={y - s * 0.9} rx={s * 0.46} ry={s * 0.37} fill={fill} />
+    </g>
+  );
+}
+
+// scenery — faint pines that turn the abstract graph into a trail through woods
+function Pine({ x, y, s }: { x: number; y: number; s: number }) {
+  return (
+    <g className="pine">
+      <path d={`M${x} ${y - s} L${x + s * 0.6} ${y - s * 0.2} L${x - s * 0.6} ${y - s * 0.2} Z`} fill="#33472a" />
+      <path d={`M${x} ${y - s * 0.5} L${x + s * 0.82} ${y + s * 0.5} L${x - s * 0.82} ${y + s * 0.5} Z`} fill="#3d5632" />
+      <rect x={x - s * 0.1} y={y + s * 0.5} width={s * 0.2} height={s * 0.36} fill="#4a3922" />
+    </g>
+  );
+}
+
+// topographic contour lines — gentle waves across the map read as terrain
+const CONTOURS = [110, 175, 240, 305, 370, 435].map((baseY, k) => {
+  const amp = 9 + (k % 3) * 4;
+  const phase = k * 42;
+  let d = `M -20 ${baseY}`;
+  for (let x = 30; x <= 400; x += 55) {
+    const cy = baseY + Math.sin((x + phase) / 55) * amp;
+    const cx = x - 27;
+    const ccy = baseY + Math.sin((x - 27 + phase) / 55) * amp;
+    d += ` Q ${cx} ${ccy} ${x} ${cy}`;
+  }
+  return d;
+});
+
+// pines tucked into the negative space, away from the marker cluster
+const PINES: [number, number, number][] = [
+  [24, 448, 11], [62, 476, 14], [112, 460, 9], [166, 486, 13],
+  [222, 468, 10], [278, 488, 14], [322, 458, 9], [356, 436, 12],
+  [142, 508, 10], [244, 508, 9], [360, 118, 9], [20, 130, 10],
+];
+
+function TrailTerrain() {
+  return (
+    <g className="terrain">
+      <rect x="0" y="0" width="380" height="520" fill="url(#tmglow)" />
+      {CONTOURS.map((d, i) => (
+        <path key={i} d={d} className="contour" />
+      ))}
+      {PINES.map(([x, y, s], i) => (
+        <Pine key={i} x={x} y={y} s={s} />
+      ))}
+    </g>
+  );
+}
+
 function TrailGraph({
   highlight,
   onPick,
+  large = false,
 }: {
   highlight: string[];
   onPick: (f: Finding) => void;
+  large?: boolean;
 }) {
   const active = highlight.length > 0;
   const hset = new Set(highlight);
 
+  // the retrace path: thread the matched markers in reveal order — grows
+  // one segment at a time as `highlight` fills in.
+  const tpts = highlight.map((id) => byId[id]).filter(Boolean);
+  const trailD = tpts.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" ");
+
   return (
-    <svg className="graph" viewBox="0 0 380 520">
+    <svg className={"graph" + (large ? " large" : "")} viewBox="0 0 380 520">
+      <defs>
+        <radialGradient id="tmglow" cx="45%" cy="34%" r="82%">
+          <stop offset="0%" stopColor="#aeb9a4" stopOpacity="0.12" />
+          <stop offset="62%" stopColor="#aeb9a4" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <TrailTerrain />
       {E.map(([a, b, r], i) => {
         const A = byId[a];
         const B = byId[b];
@@ -521,31 +668,45 @@ function TrailGraph({
         );
       })}
 
+      {/* the breadcrumb trail lighting up through the matched markers */}
+      {tpts.length > 1 && (
+        <>
+          <path className="trailglow" d={trailD} />
+          <path className="trailpath" d={trailD} />
+        </>
+      )}
+
       {F.map((f) => {
         const on = hset.has(f.id);
         const dim = active && !on;
-        const baseFill = COL[f.st];
-        const litFill = f.st === "abandoned" ? COL.abandoned : COL.match;
+        const abandoned = f.st === "abandoned";
+        const live = f.st === "in_progress";
+        const fill = on ? (abandoned ? COL.abandoned : COL.match) : COL[f.st];
+        const s = on ? 3.5 : live ? 3.0 : 2.7;
         return (
           <g className={"gnode" + (dim ? " dim" : "")} key={f.id} onClick={() => onPick(f)}>
-            {on && <circle className="ring" cx={f.x} cy={f.y} r={6} fill={litFill} />}
-            <circle
-              cx={f.x}
-              cy={f.y}
-              r={f.st === "in_progress" ? 5.5 : 5}
-              fill={on ? litFill : baseFill}
-            />
-            {f.st === "abandoned" && (
+            <circle className="hoverhalo" cx={f.x} cy={f.y} r={7.5} fill={on ? COL.match : "#9BA694"} />
+            {(on || live) && (
+              <circle
+                className="ring"
+                cx={f.x}
+                cy={f.y}
+                r={6}
+                fill={on ? COL.match : COL.in_progress}
+              />
+            )}
+            <Cairn x={f.x} y={f.y} s={s} fill={fill} />
+            {abandoned && (
               <path
-                d={`M${f.x - 2.6} ${f.y - 2.6} l5.2 5.2 M${f.x + 2.6} ${f.y - 2.6} l-5.2 5.2`}
+                d={`M${f.x - 2.3} ${f.y - 2.3} l4.6 4.6 M${f.x + 2.3} ${f.y - 2.3} l-4.6 4.6`}
                 stroke="#121A12"
-                strokeWidth={1.3}
+                strokeWidth={1.2}
                 strokeLinecap="round"
               />
             )}
-            {f.st === "in_progress" && !on && (
-              <circle className="ring" cx={f.x} cy={f.y} r={5.5} fill={COL.in_progress} />
-            )}
+            <text x={f.x} y={f.y + 9.5} textAnchor="middle" className={"glabel" + (on ? " lit" : "")}>
+              {f.id}
+            </text>
             <title>{`${f.id} · ${f.dis} · ${f.st}`}</title>
           </g>
         );
