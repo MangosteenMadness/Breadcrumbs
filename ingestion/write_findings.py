@@ -39,7 +39,11 @@ def write_payload(connection, payload: dict[str, Any]) -> None:
             if missing:
                 raise ValueError(f"Finding {finding.get('id', '<unknown>')} is missing: {', '.join(sorted(missing))}")
             if finding["category"] not in approved_categories:
-                raise ValueError(f"Unknown category {finding['category']!r}; add it to topic_categories first")
+                connection.execute(
+                    "INSERT OR IGNORE INTO topic_categories(id, description) VALUES (?, ?)",
+                    (finding["category"], None),
+                )
+                approved_categories.add(finding["category"])
             if finding["status"] not in VALID_STATUSES:
                 raise ValueError(f"Invalid status {finding['status']!r}")
             if finding["status"] == "abandoned" and not finding.get("reason"):
