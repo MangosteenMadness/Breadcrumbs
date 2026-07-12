@@ -74,21 +74,24 @@
       "title": "A surprising interaction becomes approved organizational knowledge",
       "kind": "happy_path",
       "mode": "public",
-      "description": "The host proposes a source-linked constraint, quantifies the before/after belief change from repeated categorical judgments, and presents a Memory Diff. Only the researcher's approved version is persisted.",
-      "preconditions": ["The source conversation is already ingested"],
+      "description": "A researcher states a correction or decision naturally. The host infers one concise knowledge candidate, and Breadcrumbs supplies the exact source evidence, before/after context, and reproducible elicitation protocol needed to quantify and review it. Only the researcher's approved scientific version is persisted.",
+      "preconditions": ["The host can pass the relevant recent conversation turns to the MCP tool"],
       "steps": [
-        "Call score_surprise with the prior and posterior belief samples",
+        "Call prepare_memory_diff with the host-inferred proposition, rationale, scope, optional kind, and exact relevant live turns",
+        "Run the returned fixed-label prior and posterior elicitation packets for the specified replicate count, then call score_surprise with those generated samples",
         "Show the proposition, exact quote, action change, and calculated metrics to the researcher",
         "After explicit approval, call write_knowledge",
         "Recall it in a fresh session using its topic and scope"
       ],
       "expected": [
+        "The researcher is never asked to sync, transcribe, identify, or quote the thread, or to provide belief samples, model metadata, or a run ID",
+        "The exact live turns are content-addressed once, and the prior context excludes the selected evidence while the posterior context includes it",
         "The score is reproducible from the stored samples",
         "The stored metrics are server-calculated rather than caller-supplied",
         "Recall returns the approved item with source provenance even when the fresh host adds an unknown inferred scope key",
         "A numeric query value satisfying a stored typed condition is reported as compatible"
       ],
-      "linked_requirements": ["REQ-012", "REQ-013", "REQ-014"],
+      "linked_requirements": ["REQ-012", "REQ-013", "REQ-014", "REQ-016"],
       "evidence_required": ["command-log"]
     },
     {
@@ -150,6 +153,28 @@
         "The response is concise, limited to stored evidence, and makes no organizational-title or unsupported biological claim"
       ],
       "linked_requirements": ["REQ-015"],
+      "evidence_required": ["command-log"]
+    },
+    {
+      "id": "SCN-009",
+      "title": "A natural correction is captured and yields a reproducible Memory Diff packet",
+      "kind": "happy_path",
+      "mode": "public",
+      "description": "The host converts ordinary scientific dialogue into a reviewable candidate without turning provenance plumbing into a researcher form.",
+      "preconditions": ["The correction and its relevant context are visible to the host agent"],
+      "steps": [
+        "Infer one candidate proposition, rationale, and scope from the conversation",
+        "Call prepare_memory_diff with exact relevant live turns but without source identifiers, a quote, samples, a model, or a run ID",
+        "Repeat the same call and inspect the selected source, alternatives, and elicitation packets",
+        "Inspect the database before any approval write"
+      ],
+      "expected": [
+        "Both calls reuse one content-addressed source snapshot and return the same exact source span, deterministic run ID, and bounded candidate ordering",
+        "The returned prior packet excludes the selected evidence and the posterior packet adds it while keeping the proposition and fixed labels identical",
+        "The result contains source provenance, an authenticated actor hint when available or an explicit missing-author field otherwise, and a partial write template but no fabricated judgments",
+        "Preparation stores only raw source provenance; no knowledge row is created before explicit approval"
+      ],
+      "linked_requirements": ["REQ-016"],
       "evidence_required": ["command-log"]
     }
   ],

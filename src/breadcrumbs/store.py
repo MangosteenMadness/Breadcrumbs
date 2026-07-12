@@ -5,16 +5,23 @@ import json
 import math
 import re
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from ingestion.store import DEFAULT_DB_PATH, connect
+from ingestion.store import DEFAULT_DB_PATH, connect, extract_sections
 from ingestion.write_findings import write_payload
 
-from .contracts import DuplicationResult, Match, RecallFinding, RecallFindingsResult, RenderWikiResult
+from .contracts import (
+    DuplicationResult,
+    Match,
+    MemoryDiffPreparationResult,
+    RecallFinding,
+    RecallFindingsResult,
+    RenderWikiResult,
+)
 from .embeddings import (
     DENSE_MIN_SIMILARITY,
     EmbeddingBackend,
@@ -30,6 +37,7 @@ from .knowledge import (
     APPROVED_ELICITATION_MODELS,
     DERIVED_FIELDS,
     KNOWLEDGE_KINDS,
+    SURPRISE_METHOD,
     action_delta,
     alias_list,
     condition_list,
@@ -43,6 +51,7 @@ from .knowledge import (
     score_samples,
     tokens,
 )
+from .interaction_context import build_context_packets, rank_evidence
 from .identity import backfill_session_identity_candidates, is_person_candidate
 from .people import (
     EXPERTISE_METHOD,
@@ -493,6 +502,348 @@ class BreadcrumbsStore:
             prior_action_samples=prior_action_samples,
             posterior_action_samples=posterior_action_samples,
         )
+
+    def _capture_live_context(
+        self,
+        live_context: Any,
+        *,
+        current_actor: str | None,
+        live_session_title: str | None,
+    ) -> tuple[str, int]:
+        """Persist an exact, content-addressed snapshot of host-supplied live turns."""
+
+        if isinstance(live_context, (str, bytes, Mapping)) or not isinstance(
+            live_context, Iterable
+        ):
+            raise ValueError("live_context must be an array of conversation turns")
+        raw_turns = list(live_context)
+        if not 1 <= len(raw_turns) <= 12:
+            raise ValueError("live_context must contain between 1 and 12 turns")
+        turns: list[dict[str, Any]] = []
+        for index, raw in enumerate(raw_turns):
+            if not isinstance(raw, Mapping):
+                raise ValueError(f"live_context[{index}] must be a JSON object")
+            unknown = set(raw) - {"role", "content", "created_at"}
+            if unknown:
+                raise ValueError(
+                    f"live_context[{index}] has unknown field(s): "
+                    + ", ".join(sorted(unknown))
+                )
+            role = raw.get("role")
+            if role not in {"user", "assistant"}:
+                raise ValueError(
+                    f"live_context[{index}].role must be user or assistant"
+                )
+            content = raw.get("content")
+            if not isinstance(content, str) or not content.strip():
+                raise ValueError(
+                    f"live_context[{index}].content must be a non-empty string"
+                )
+            if len(content) > 50000:
+                raise ValueError(
+                    f"live_context[{index}].content must not exceed 50000 characters"
+                )
+            created_at = raw.get("created_at")
+            if created_at is not None:
+                created_at = nonempty_text(
+                    created_at, f"live_context[{index}].created_at"
+                )
+            turns.append(
+                {"role": role, "content": content, "created_at": created_at}
+            )
+
+        title = (
+            "Live interaction evidence"
+            if live_session_title is None
+            else nonempty_text(live_session_title, "live_session_title")
+        )
+        identity_payload = {"actor": current_actor, "turns": turns}
+        digest = hashlib.sha256(
+            json_dumps(identity_payload).encode("utf-8")
+        ).hexdigest()
+        session_id = "LIVE-" + digest[:20].upper()
+        source_url = f"mcp://breadcrumbs/live/{session_id}"
+        raw_json = json_dumps(
+            {
+                "source": "mcp_live_context",
+                "content_sha256": digest,
+                "turns": turns,
+            }
+        )
+        captured_at = datetime.now(timezone.utc).isoformat()
+
+        connection = connect(self.path)
+        try:
+            with connection:
+                existing_session = connection.execute(
+                    "SELECT id FROM chat_sessions WHERE id = ?", (session_id,)
+                ).fetchone()
+                if existing_session is None:
+                    connection.execute(
+                        """
+                        INSERT INTO chat_sessions(
+                            id, url, title, scraped_at, raw_json, updated_at, researcher
+                        ) VALUES (?, ?, ?, ?, ?, NULL, ?)
+                        """,
+                        (
+                            session_id,
+                            source_url,
+                            title,
+                            captured_at,
+                            raw_json,
+                            current_actor,
+                        ),
+                    )
+                for seq, turn in enumerate(turns):
+                    message_id = f"{session_id}:{seq}"
+                    existing_message = connection.execute(
+                        """
+                        SELECT role, content, created_at
+                        FROM chat_messages
+                        WHERE id = ?
+                        """,
+                        (message_id,),
+                    ).fetchone()
+                    expected = (turn["role"], turn["content"], turn["created_at"])
+                    if existing_message is None:
+                        connection.execute(
+                            """
+                            INSERT INTO chat_messages(
+                                id, session_id, seq, role, content, created_at
+                            ) VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (message_id, session_id, seq, *expected),
+                        )
+                    elif tuple(existing_message) != expected:
+                        raise ValueError(
+                            "Content-addressed live interaction conflicted with stored source"
+                        )
+                    for section in extract_sections(turn["content"]):
+                        parent_seq = section["parent_seq"]
+                        connection.execute(
+                            """
+                            INSERT OR IGNORE INTO chat_message_sections(
+                                id, message_id, seq, heading, level, content, parent_id, path
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                f"{message_id}:section:{section['seq']}",
+                                message_id,
+                                section["seq"],
+                                section["heading"],
+                                section["level"],
+                                section["content"],
+                                (
+                                    f"{message_id}:section:{parent_seq}"
+                                    if parent_seq is not None
+                                    else None
+                                ),
+                                section["path"],
+                            ),
+                        )
+        finally:
+            connection.close()
+        return session_id, len(turns)
+
+    def prepare_memory_diff(
+        self,
+        proposition: str,
+        rationale: str,
+        scope: dict[str, Any],
+        *,
+        kind: str = "decision",
+        evidence_query: str | None = None,
+        source_session_id: str | None = None,
+        live_context: list[dict[str, Any]] | None = None,
+        live_session_title: str | None = None,
+        current_actor: str | None = None,
+        elicitation_model: str = "claude-sonnet-5",
+        replicates: int = 5,
+        context_chars: int = 6000,
+        candidate_limit: int = 3,
+        candidate_rank: int = 1,
+    ) -> dict[str, Any]:
+        """Capture or resolve exact evidence and build reproducible elicitation packets.
+
+        The model host proposes the scientific statement. Breadcrumbs supplies the mechanical
+        provenance fields and paired source contexts so a researcher is never asked to identify
+        database rows, copy an exact quote, or construct repeated judgment arrays.
+        """
+
+        proposition = nonempty_text(proposition, "proposition")
+        rationale = nonempty_text(rationale, "rationale")
+        scope = json_object(scope, "scope")
+        kind = nonempty_text(kind, "kind")
+        if kind not in KNOWLEDGE_KINDS:
+            raise ValueError("kind must be one of: " + ", ".join(sorted(KNOWLEDGE_KINDS)))
+        if evidence_query is not None:
+            evidence_query = nonempty_text(evidence_query, "evidence_query")
+        if source_session_id is not None:
+            source_session_id = nonempty_text(source_session_id, "source_session_id")
+        if live_context is not None and source_session_id is not None:
+            raise ValueError(
+                "use either live_context or source_session_id, not both"
+            )
+        if live_session_title is not None and live_context is None:
+            raise ValueError("live_session_title requires live_context")
+        if current_actor is not None:
+            current_actor = nonempty_text(current_actor, "current_actor")
+        elicitation_model = nonempty_text(elicitation_model, "elicitation_model")
+        if elicitation_model not in APPROVED_ELICITATION_MODELS:
+            raise ValueError(
+                "elicitation_model must be approved for reproducible elicitation: "
+                + ", ".join(sorted(APPROVED_ELICITATION_MODELS))
+            )
+        for field, value, minimum, maximum in (
+            ("replicates", replicates, 3, 20),
+            ("context_chars", context_chars, 1000, 20000),
+            ("candidate_limit", candidate_limit, 1, 5),
+            ("candidate_rank", candidate_rank, 1, 5),
+        ):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or not minimum <= value <= maximum
+            ):
+                raise ValueError(f"{field} must be an integer between {minimum} and {maximum}")
+        if candidate_rank > candidate_limit:
+            raise ValueError("candidate_rank must not exceed candidate_limit")
+
+        source_origin = "stored_interaction"
+        captured_turn_count = 0
+        if live_context is not None:
+            source_session_id, captured_turn_count = self._capture_live_context(
+                live_context,
+                current_actor=current_actor,
+                live_session_title=live_session_title,
+            )
+            source_origin = "captured_live_context"
+
+        connection = connect(self.path)
+        try:
+            if source_session_id is not None:
+                session = connection.execute(
+                    "SELECT id FROM chat_sessions WHERE id = ?", (source_session_id,)
+                ).fetchone()
+                if session is None:
+                    raise ValueError(f"Unknown source session: {source_session_id}")
+            sql = (
+                "SELECT m.id, m.session_id, m.seq, m.role, m.content, "
+                "s.title AS session_title, s.researcher AS source_researcher "
+                "FROM chat_messages m JOIN chat_sessions s ON s.id = m.session_id"
+            )
+            parameters: tuple[Any, ...] = ()
+            if source_session_id is not None:
+                sql += " WHERE m.session_id = ?"
+                parameters = (source_session_id,)
+            sql += " ORDER BY m.session_id, m.seq, m.id"
+            rows = [dict(row) for row in connection.execute(sql, parameters).fetchall()]
+        finally:
+            connection.close()
+
+        search_query = evidence_query or " ".join(
+            (proposition, rationale, json_dumps(scope))
+        )
+        candidates = rank_evidence(rows, search_query, scope, limit=candidate_limit)
+        if not candidates:
+            searched = (
+                f"source session {source_session_id}"
+                if source_session_id
+                else "ingested chat sessions"
+            )
+            raise ValueError(
+                "No exact source evidence matched the candidate in "
+                f"{searched}. Revise the host-generated evidence query or selected live turns "
+                "before writing; do not ask the researcher for provenance metadata."
+            )
+        if candidate_rank > len(candidates):
+            raise ValueError(
+                f"candidate_rank {candidate_rank} was requested, but only "
+                f"{len(candidates)} source candidate(s) matched"
+            )
+        selected = candidates[candidate_rank - 1]
+
+        source_messages = [
+            row for row in rows if row["session_id"] == selected["source_session_id"]
+        ]
+        prior_packet, posterior_packet = build_context_packets(
+            source_messages,
+            selected,
+            proposition,
+            context_chars=context_chars,
+        )
+
+        draft_payload = {
+            "kind": kind,
+            "proposition": proposition,
+            "rationale": rationale,
+            "scope": scope,
+            "source_message_id": selected["source_message_id"],
+            "quote_start": selected["quote_start"],
+            "quote_end": selected["quote_end"],
+            "evidence_quote": selected["evidence_quote"],
+        }
+        draft_hash = hashlib.sha256(json_dumps(draft_payload).encode("utf-8")).hexdigest()
+        draft_id = "MD-" + draft_hash[:12].upper()
+        run_payload = {
+            "draft_id": draft_id,
+            "model": elicitation_model,
+            "replicates": replicates,
+            "prior": prior_packet,
+            "posterior": posterior_packet,
+        }
+        run_hash = hashlib.sha256(json_dumps(run_payload).encode("utf-8")).hexdigest()
+        run_id = "ELIC-" + run_hash[:16].upper()
+
+        author_hint = current_actor
+        author_hint_source = "authenticated_actor" if current_actor else "unavailable"
+        record_template: dict[str, Any] = {
+            "kind": kind,
+            "proposition": proposition,
+            "rationale": rationale,
+            "scope": scope,
+            "aliases": [],
+            "conditions": [],
+            "evidence_quote": selected["evidence_quote"],
+            "source_message_id": selected["source_message_id"],
+            "elicitation_model": elicitation_model,
+            "elicitation_run_id": run_id,
+        }
+        missing_record_fields = ["prior_samples", "posterior_samples"]
+        if author_hint is not None:
+            record_template["author"] = author_hint
+        else:
+            missing_record_fields.append("author")
+        if kind == "abandoned":
+            missing_record_fields.append("reason")
+
+        result = MemoryDiffPreparationResult.model_validate(
+            {
+                "draft_id": draft_id,
+                "source_origin": source_origin,
+                "captured_turn_count": captured_turn_count,
+                "selected_evidence": selected,
+                "evidence_candidates": candidates,
+                "elicitation": {
+                    "model": elicitation_model,
+                    "run_id": run_id,
+                    "replicates": replicates,
+                    "scoring_method": SURPRISE_METHOD,
+                    "prior": prior_packet,
+                    "posterior": posterior_packet,
+                },
+                "author_hint": author_hint,
+                "author_hint_source": author_hint_source,
+                "record_template": record_template,
+                "missing_record_fields": missing_record_fields,
+                "selection_warning": (
+                    "Evidence was selected by deterministic lexical ranking over exact stored "
+                    "transcript spans. Review the selected quote and choose another returned "
+                    "candidate when it does not support the proposed knowledge."
+                ),
+            }
+        )
+        return result.model_dump()
 
     def write_knowledge(self, record: dict[str, Any]) -> dict[str, Any]:
         """Validate and persist one explicitly approved, source-linked knowledge item."""

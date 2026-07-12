@@ -24,21 +24,23 @@ Two rules from Breadcrumbs-v2 govern every component below, and they are the who
    says *"this is novel"*. It cannot know that, and claiming it is the exact failure mode that makes
    researchers stop trusting the tool.
 
-Findings are extracted **in the host** (K Pro / Claude Desktop) before these tools are called — the
-server receives structured arguments, not raw chat. Writes pass a human confirm gate.
+Findings are extracted **in the host** (K Pro / Claude Desktop) before these tools are called. For
+interaction knowledge, the host may additionally pass only the relevant recent turns to
+`prepare_memory_diff`; Breadcrumbs stores that exact source snapshot before constructing the diff.
+Authoritative finding and knowledge writes still pass a human confirm gate.
 
 Component IDs must stay in the same order as `components.md` and `feature.json`.
 
 ## MCP — the server and its tools
 
 ### BC-MCP-001 — Server bootstrap and tool registration
-- **Behavior:** A Python MCP server exposing the nine tools below, connected to Claude Desktop as the
+- **Behavior:** A Python MCP server exposing the ten tools below, connected to Claude Desktop as the
   host (the host stands in for K Pro in the demo). Opens the graph store read-write and surfaces
   errors rather than failing silently mid-demo.
 - **Data:** reads/writes `ingestion/breadcrumbs.db` through the existing store module.
 - **Source:** `src/breadcrumbs/server.py`.
 - **Status:** built-at-parity.
-- **REQ-001:** The server starts, registers all nine tools, and Claude Desktop lists them.
+- **REQ-001:** The server starts, registers all ten tools, and Claude Desktop lists them.
 
 ### BC-MCP-002 — Tool contracts
 - **Behavior:** Typed input/output models for every tool, exported to a checked-in JSON Schema. This
@@ -214,3 +216,29 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
   sessions appear under `active_investigators`; investigator-only people never appear under
   demonstrated experts; and empty results name the stores searched without claiming a definitive
   absence of expertise.
+
+### BC-MCP-014 — `prepare_memory_diff`
+- **Behavior:** Converts a natural interaction-level knowledge candidate into a reproducible,
+  source-grounded elicitation packet without asking the researcher for storage metadata. Given a
+  host-inferred proposition, rationale, scope, optional kind, and relevant recent `live_context`
+  turns copied exactly by the agent, the tool writes one content-addressed source snapshot to
+  `chat_sessions` / `chat_messages`, then deterministically ranks its exact spans. Repeating the
+  same capture is idempotent. If `live_context` is omitted, the tool may instead search an already
+  stored interaction, optionally narrowed by `source_session_id`. It returns the selected verbatim
+  quote plus bounded alternatives, source identifiers/hash/offsets, prior context that excludes the
+  evidence, posterior context that adds it, the fixed belief-label vocabulary, pinned approved
+  model, deterministic run ID and replicate count, an authenticated actor hint when available, and
+  a partial `write_knowledge` record template. The researcher supplies no sync action, transcript,
+  IDs, quote, samples, model name, or run ID. If authenticated actor context is unavailable, author
+  remains explicitly missing; Breadcrumbs does not infer it from the transcript. The host executes
+  the returned elicitation protocol, presents the scientific Memory Diff, and calls
+  `write_knowledge` only after explicit approval. Source capture is not knowledge approval.
+- **Data:** reads and idempotently inserts source snapshots in `chat_sessions`, `chat_messages`, and
+  `chat_message_sections`; does not persist samples, candidates, or `knowledge_items`.
+- **Source:** `src/breadcrumbs/interaction_context.py`; `src/breadcrumbs/store.py`;
+  `src/breadcrumbs/server.py`.
+- **Status:** built-at-parity.
+- **REQ-016:** A natural correction or decision can be captured and prepared directly from exact
+  live host turns without researcher-supplied sync, identifiers, quote, belief samples, model, or
+  run ID; repeated calls produce one stable source snapshot, exact evidence and before/after
+  packets, while no authoritative knowledge row exists before approval.

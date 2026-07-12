@@ -22,6 +22,9 @@ from ingestion.store import connect  # noqa: E402
 
 
 QUOTE = "The patient-level cohort is too small for confirmatory inference."
+LIVE_DECISION = (
+    "Use TCGA-CDR PFI as the primary endpoint and keep OS as a sensitivity analysis."
+)
 
 
 def payload():
@@ -97,9 +100,28 @@ class KnowledgeApiTests(unittest.TestCase):
     def test_mcp_registers_surprise_write_and_recall_tools(self) -> None:
         tools = {tool.name: tool for tool in asyncio.run(mcp.list_tools())}
         self.assertTrue(
-            {"score_surprise", "write_knowledge", "recall_knowledge", "find_experts"}
+            {
+                "prepare_memory_diff",
+                "score_surprise",
+                "write_knowledge",
+                "recall_knowledge",
+                "find_experts",
+            }
             <= set(tools)
         )
+        prepare = tools["prepare_memory_diff"]
+        self.assertFalse(prepare.annotations.readOnlyHint)
+        self.assertFalse(prepare.annotations.destructiveHint)
+        self.assertTrue(prepare.annotations.idempotentHint)
+        self.assertIn("live_context", prepare.inputSchema["properties"])
+        for caller_supplied_field in (
+            "source_message_id",
+            "evidence_quote",
+            "prior_samples",
+            "posterior_samples",
+            "elicitation_run_id",
+        ):
+            self.assertNotIn(caller_supplied_field, prepare.inputSchema["properties"])
         write_schema = tools["write_knowledge"].inputSchema
         self.assertEqual(set(write_schema["required"]), {"record", "approved_by"})
         self.assertNotIn("approved_by", write_schema["properties"]["record"].get("properties", {}))
@@ -108,6 +130,56 @@ class KnowledgeApiTests(unittest.TestCase):
         self.assertIn("strict_scope", recall.inputSchema["properties"])
         self.assertTrue(tools["find_experts"].annotations.readOnlyHint)
         self.assertIn("evidence_limit", tools["find_experts"].inputSchema["properties"])
+
+    def test_rest_prepare_resolves_source_without_technical_metadata(self) -> None:
+        response = self.client.post(
+            "/knowledge/prepare",
+            json={
+                "proposition": "Treat TP53 inference as exploratory at patient level.",
+                "rationale": "Independent patient replication is too small.",
+                "scope": {"disease": "BLCA", "unit": "patient"},
+                "evidence_query": "patient cohort too small confirmatory inference",
+                "current_actor": "Dr. Chen",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result["selected_evidence"]["source_message_id"], "api-session:1")
+        self.assertEqual(result["selected_evidence"]["evidence_quote"], QUOTE)
+        self.assertEqual(result["record_template"]["author"], "Dr. Chen")
+        self.assertEqual(result["author_hint_source"], "authenticated_actor")
+        self.assertNotIn("prior_samples", result["record_template"])
+        self.assertNotIn("posterior_samples", result["record_template"])
+
+    def test_rest_prepare_captures_live_agent_context_without_sync(self) -> None:
+        response = self.client.post(
+            "/knowledge/prepare",
+            json={
+                "proposition": "Use PFI as the primary TCGA-BRCA endpoint.",
+                "rationale": "The public endpoint guidance cautions against relying on OS alone.",
+                "scope": {"disease": "BRCA", "dataset": "TCGA-CDR"},
+                "evidence_query": "TCGA-CDR PFI primary endpoint OS sensitivity",
+                "live_context": [
+                    {
+                        "role": "assistant",
+                        "content": "TCGA-CDR recommends PFI for BRCA and cautions on OS.",
+                    },
+                    {"role": "user", "content": LIVE_DECISION},
+                ],
+                "current_actor": "Dr. Chen",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result["source_origin"], "captured_live_context")
+        self.assertEqual(result["captured_turn_count"], 2)
+        self.assertEqual(result["selected_evidence"]["evidence_quote"], LIVE_DECISION)
+        self.assertTrue(
+            result["selected_evidence"]["source_session_id"].startswith("LIVE-")
+        )
+        self.assertEqual(result["record_template"]["author"], "Dr. Chen")
 
     def test_rest_score_uses_flat_ui_contract(self) -> None:
         response = self.client.post(

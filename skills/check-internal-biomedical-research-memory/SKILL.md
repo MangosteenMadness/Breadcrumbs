@@ -136,13 +136,29 @@ When an exchange changes what a future researcher should believe or do, propose 
 concise Memory Diff immediately after the correction, decision, exception, or abandoned approach.
 Generic summaries and unsupported implications are not candidates.
 
-The candidate must include a scoped proposition, rationale, exact quote from an ingested source
-message, author, fixed before/after belief samples, and any structured action change. Call
-`breadcrumbs:score_surprise`, then show the calculated belief shift and Bayesian surprise as
-measures of belief movement—not importance or originality. Do not call
-`breadcrumbs:write_knowledge` until a person explicitly approves that exact diff. Supply the
-approver through the separate `approved_by` argument. If the person edits or declines it, do not
-persist the unapproved version.
+Infer one concise proposition, rationale, scope, and optional kind from the scientific exchange,
+then immediately call `breadcrumbs:prepare_memory_diff` with `live_context` containing only the
+relevant recent user and assistant turns copied exactly from the active conversation. Do not
+paraphrase those turns or include hidden reasoning/tool traces. Do not ask the researcher to sync,
+transcribe, identify, or quote the thread, or to provide belief samples, an elicitation model, or a
+run ID. Pass `current_actor` only from authenticated host context. Use `source_session_id` without
+`live_context` only when deliberately preparing from an interaction already stored in Breadcrumbs.
+The tool content-addresses live source turns and supplies exact evidence, bounded alternatives,
+before/after packets, fixed labels, approved model, deterministic run ID, author hint, and partial
+record template.
+
+Review the returned source selection and warning. If no live or stored span supports the candidate,
+do not invent provenance or write knowledge. Never tell the researcher to perform ingestion. For a
+supported candidate, execute the returned prior and posterior elicitation packets independently for
+the specified replicate count, using exactly the returned proposition and label vocabulary. Do not
+invent judgments, substitute another model, or create a run ID. Pass the observed labels to
+`breadcrumbs:score_surprise`, then show the scientific Memory Diff and calculated belief shift and
+Bayesian surprise as measures of belief movement—not importance or originality.
+
+Do not call `breadcrumbs:write_knowledge` until a person explicitly approves that exact diff.
+Supply the approver through the separate `approved_by` argument. If the person edits or declines
+it, do not persist the unapproved version. The researcher reviews scientific content; the MCP and
+host carry the provenance and elicitation mechanics.
 
 ## Write reviewed findings only
 

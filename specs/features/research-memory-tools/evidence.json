@@ -4,15 +4,15 @@
     {
       "id": "REQ-001",
       "kind": "command",
-      "detail": "Server starts and registers all nine tools",
+      "detail": "Server starts and registers all ten tools",
       "command": "python -m pytest tests/test_mcp_server.py -k registration",
       "cwd": ".",
-      "startedAt": "2026-07-12T18:58:20Z",
-      "finishedAt": "2026-07-12T18:58:31Z",
-      "logPath": ".spec/evidence/research-memory-tools/merge-main-001/merge.log",
+      "startedAt": "2026-07-12T19:47:27Z",
+      "finishedAt": "2026-07-12T19:48:31Z",
+      "logPath": ".spec/evidence/research-memory-tools/live-context-002/live-context.log",
       "artifactHash": "",
       "satisfied": true,
-      "summary": "Merged nine-tool server registration, UI REST seams, and the full 115-test suite passed; the production UI build also succeeded."
+      "summary": "The ten-tool server registration passed as part of the 124-test suite; prepare_memory_diff is registered as idempotent, non-destructive source capture."
     },
     {
       "id": "REQ-002",
@@ -191,6 +191,19 @@
       "artifactHash": "93777bd4a6408a2e3756ec389bf9e9ba26f5041ad11bde6a87b4a2b043524b84",
       "satisfied": true,
       "summary": "6 deterministic tests passed. Fresh ephemeral Codex thread 019f5754-1efb-7893-a059-694bc943813b returned only Roopal for scoped BLCA evidence, reported stored statistics and provenance in a compact table, and omitted off-disease, non-person, dramatic, and speculative language."
+    },
+    {
+      "id": "REQ-016",
+      "kind": "command",
+      "detail": "prepare_memory_diff idempotently captures exact live host turns, derives source evidence and deterministic prior/posterior context, and creates no knowledge row before approval",
+      "command": "PYTHONPATH=src .venv/bin/python -m unittest tests.test_memory_diff_preparation",
+      "cwd": ".",
+      "startedAt": "2026-07-12T19:47:27Z",
+      "finishedAt": "2026-07-12T19:48:31Z",
+      "logPath": ".spec/evidence/research-memory-tools/live-context-002/live-context.log",
+      "artifactHash": "bd7dea030d0f0725c83581c62069064bb12b32579fb76a425efa198e45de4368",
+      "satisfied": true,
+      "summary": "Seven focused tests passed: exact live turns are captured without sync, retries reuse one content-addressed source snapshot, preparation creates no knowledge row, approval persists the decision, and a fresh store retrieves it. The full 124-test suite, validator, lock check, and UI build also passed."
     }
   ],
   "complete": false

@@ -20,12 +20,13 @@
     "BC-MCP-010",
     "BC-MCP-011",
     "BC-MCP-012",
-    "BC-MCP-013"
+    "BC-MCP-013",
+    "BC-MCP-014"
   ],
   "acceptance_criteria": [
     {
       "id": "REQ-001",
-      "text": "The MCP server starts, registers all nine tools, and the host lists them.",
+      "text": "The MCP server starts, registers all ten tools, and the host lists them.",
       "coverage": "automated_check",
       "command": "python -m pytest tests/test_mcp_server.py -k registration"
     },
@@ -113,6 +114,12 @@
       "text": "find_experts ranks canonical people from source-linked relevant knowledge and findings using deterministic role weights and a per-session cap, separately returns named active investigators, excludes review-only, investigator-only, non-person, off-disease, and low-coverage matches from demonstrated experts, retains abandoned evidence, exposes all score components and citations, and uses concise evidence-score language without unsupported interpretation.",
       "coverage": "automated_check",
       "command": "python -m pytest tests/test_expertise.py"
+    },
+    {
+      "id": "REQ-016",
+      "text": "prepare_memory_diff lets the host capture relevant exact live turns and derive a reproducible Memory Diff from a natural correction or decision without asking the researcher to sync or provide conversation text, message IDs, an exact quote, belief samples, an elicitation model, or a run ID. Identical calls idempotently reuse one content-addressed source snapshot and return exact evidence, before/after context packets, fixed-label elicitation instructions, provenance, and a write template, while no knowledge item exists before explicit approval.",
+      "coverage": "automated_check",
+      "command": "PYTHONPATH=src .venv/bin/python -m unittest tests.test_memory_diff_preparation"
     }
   ],
   "evidence_required": ["tests"],
@@ -128,6 +135,8 @@
       "RecallFindingsResult",
       "RenderWikiInput",
       "SurpriseInput",
+      "MemoryDiffPreparationInput",
+      "MemoryDiffPreparationResult",
       "KnowledgeCandidate",
       "KnowledgeRecallInput",
       "ExpertLookupInput",
@@ -144,6 +153,7 @@
       { "method": "POST", "path": "/mcp/tools/write_finding" },
       { "method": "POST", "path": "/mcp/tools/recall_findings" },
       { "method": "POST", "path": "/mcp/tools/render_wiki" },
+      { "method": "POST", "path": "/mcp/tools/prepare_memory_diff" },
       { "method": "POST", "path": "/mcp/tools/score_surprise" },
       { "method": "POST", "path": "/mcp/tools/write_knowledge" },
       { "method": "POST", "path": "/mcp/tools/recall_knowledge" },

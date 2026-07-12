@@ -60,13 +60,22 @@ related.
 
 The header's **Review memory diff** action shows a source-linked candidate before it enters the
 authoritative trail: exact evidence quote, structured scope, repeated before/after belief samples,
-Bayesian surprise, certainty gain, action divergence, and the concrete action delta.
+Bayesian surprise, certainty gain, action divergence, and the concrete action delta. In the live
+agent flow, Claude passes the exact relevant live turns to `prepare_memory_diff`; Breadcrumbs
+content-addresses that source snapshot, selects the exact evidence span, and returns the prior and
+posterior context packets, fixed labels, approved model, deterministic run ID, and record template.
+Those are MCP-provided mechanics: the researcher only discusses the science and approves, edits,
+or declines the resulting diff—there is no manual sync step.
 
 The checked-in TP53 example is explicitly an **illustrative UI fixture**: its source quote comes
 from the ingested session, but its fixed judgment samples were not logged by that run, so approval
 is disabled. A live candidate becomes writable only when the host supplies an observed elicitation
 from an approved model with a traceable run ID. The fixture is never presented as authoritative
 evidence and cannot pollute the graph.
+
+The checked-in browser fixture does not yet originate its candidate through
+`/knowledge/prepare`; that endpoint supports connected agent hosts. The existing browser route
+continues to proxy scoring and the explicit approval write, with no mock-success write path.
 
 Configure the REST base alongside the duplication seam:
 

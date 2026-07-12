@@ -54,7 +54,7 @@ own schemas and templates, and the validator is a Python port so this stays a No
 ## Breadcrumbs MCP server
 
 The MCP server is a thin adapter over the same `ingestion/breadcrumbs.db` used by the ingestion
-pipeline. It does not create a second database or schema. It exposes nine tools:
+pipeline. It does not create a second database or schema. It exposes ten tools:
 
 - `check_duplication(hypothesis_text, limit)` searches the internal findings graph and returns the
   UI-compatible `match | open` contract without calling an external literature service.
@@ -64,6 +64,12 @@ pipeline. It does not create a second database or schema. It exposes nine tools:
 - `render_wiki(finding_ids, title)` generates a cited, read-only Markdown view of the graph.
 - `read(column, value)` performs an allowlisted, parameterized equality query against the
   `findings` table.
+- `prepare_memory_diff(...)` takes a host-inferred proposition, rationale, and scope from ordinary
+  scientific dialogue. The agent passes only the exact relevant recent turns; Breadcrumbs stores
+  them as an idempotent content-addressed source snapshot, selects exact supporting evidence, and
+  returns deterministic prior/posterior packets plus approved model/run provenance. The researcher
+  is not asked to sync or supply transcript text, IDs, quotes, samples, a model, or a run ID. Source
+  capture does not create approved knowledge.
 - `score_surprise(...)` fits before/after Beta beliefs from repeated fixed-label judgments and
   reports belief shift, `KL(posterior || prior)`, entropy change, and optional action divergence in
   bits. The same samples always produce the same result.
@@ -105,9 +111,10 @@ BREADCRUMBS_TRANSPORT=http .venv/bin/breadcrumbs-mcp
 ```
 
 The HTTP MCP endpoint is `http://127.0.0.1:8000/mcp`; health is available at `/health`.
-The demo UI uses equivalent REST seams at `/check_duplication`, `/knowledge/score`, `/knowledge`,
-`/knowledge/recall`, and `/experts/find`. The checked public contract is generated at
-`schema/mcp_contracts.schema.json`.
+The backend exposes equivalent REST seams at `/check_duplication`, `/knowledge/prepare`,
+`/knowledge/score`, `/knowledge`, `/knowledge/recall`, and `/experts/find`; the current browser demo
+uses the duplication, scoring, approval, recall, and expertise seams. The checked public contract
+is generated at `schema/mcp_contracts.schema.json`.
 Set `BREADCRUMBS_DB` to override the default `ingestion/breadcrumbs.db` path. Dense retrieval is
 enabled by default with `BAAI/bge-small-en-v1.5`; set `BREADCRUMBS_EMBEDDINGS=0` to disable it or
 `BREADCRUMBS_EMBEDDING_MODEL` to an explicitly reviewed local FastEmbed model. The first start
@@ -118,8 +125,9 @@ The MCP accepts `created_at` and `source_session` as read aliases for the physic
 `schema/example_finding_extraction.json`; `id` and `created_at` are optional for MCP writes.
 
 The server publishes initialization and tool guidance telling agents when to read and write,
-how to summarize confirmed/in-progress/abandoned work, and how to avoid novelty or causality
-overclaims. For proactive use in Claude, upload the intent-named skill under
+how to prepare an interaction-grounded Memory Diff without asking the researcher for provenance
+plumbing, how to summarize confirmed/in-progress/abandoned work, and how to avoid novelty or
+causality overclaims. For proactive use in Claude, upload the intent-named skill under
 `skills/check-internal-biomedical-research-memory/`.
 
 ## Get the chat ingestor running

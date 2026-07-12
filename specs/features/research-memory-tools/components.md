@@ -22,3 +22,4 @@
 | BC-MCP-011 | `write_knowledge` — source-verified human approval gate | built-at-parity |
 | BC-MCP-012 | `recall_knowledge` — BM25+dense rank fusion with constraint-aware active-patch recall | built-at-parity |
 | BC-MCP-013 | `find_experts` — demonstrated expertise plus separately calibrated investigation activity | built-at-parity |
+| BC-MCP-014 | `prepare_memory_diff` — idempotent live-turn capture, source search, and elicitation context | built-at-parity |

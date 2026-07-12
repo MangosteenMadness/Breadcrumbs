@@ -53,7 +53,7 @@ class MCPContractTests(unittest.TestCase):
     def store(self) -> BreadcrumbsStore:
         return BreadcrumbsStore(self.path)
 
-    def test_registration_lists_all_nine_contract_tools(self) -> None:
+    def test_registration_lists_all_ten_contract_tools(self) -> None:
         old = os.environ.get("BREADCRUMBS_DB")
         os.environ["BREADCRUMBS_DB"] = str(self.path)
         try:
@@ -69,6 +69,7 @@ class MCPContractTests(unittest.TestCase):
                     "recall_findings",
                     "render_wiki",
                     "read",
+                    "prepare_memory_diff",
                     "score_surprise",
                     "write_knowledge",
                     "recall_knowledge",
