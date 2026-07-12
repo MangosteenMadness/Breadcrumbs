@@ -15,6 +15,7 @@ import {
 } from "@/lib/data";
 import { SESSIONS_WITH_CHARTS, sessionForFinding, type Session } from "@/lib/sessions";
 import { MemoryDiffCard } from "./memory-diff";
+import { findExpert, buildExpertMarkdown } from "@/lib/expert_finder";
 import { SessionTranscript } from "./transcript";
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -73,6 +74,42 @@ export default function Home() {
     if (busy) return;
     setBusy(true);
     setHighlight([]);
+
+    // ── expert-finder intent (client-side, mirrors lib/duplication.ts) ──
+    // Falls through silently when the question isn't an expert-finder question,
+    // so sidebar clicks (forcedId) and normal hypotheses are unaffected.
+    const expert = findExpert(text);
+    if (expert && !forcedId) {
+      setItems((prev) => [...prev, { kind: "user", id: nextId(), text }]);
+      await wait(400);
+
+      const thinkId = nextId();
+      setItems((prev) => [...prev, { kind: "think", id: thinkId, revealed: 0, done: false }]);
+      // Reuse the existing thinking animation; v1 keeps STEPS as-is.
+      for (let i = 0; i < STEPS.length; i++) {
+        await wait(350);
+        patch(thinkId, { revealed: i + 1 });
+      }
+      patch(thinkId, { revealed: STEPS.length, done: true });
+
+      setItems((prev) => [
+        ...prev,
+        {
+          kind: "answer",
+          id: nextId(),
+          res: {
+            verdict: "match",
+            matches: [],
+            searched: F.length,
+            markdown: buildExpertMarkdown(text, expert),
+          },
+        },
+      ]);
+      setHighlight([]);
+      setBusy(false);
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────
 
     setItems((prev) => [...prev, { kind: "user", id: nextId(), text }]);
     await wait(400);
