@@ -9,6 +9,7 @@ from ingestion.ingest_chat import (
     humanize_kpro_markdown,
     load_from_file,
     payload_for_chat,
+    slim_raw_payload,
 )
 from ingestion.store import connect, extract_sections, ingested_revisions, upsert_session
 from ingestion.write_findings import write_payload
@@ -127,6 +128,21 @@ class IngestionTests(unittest.TestCase):
             )
             connection.close()
 
+    def test_heavy_plot_blocks_are_stripped_but_text_is_kept(self):
+        payload = {"messages": [{"role": "assistant", "blocks": [
+            {"type": "text", "semantic_type": "main", "content": "The key finding is X."},
+            {"type": "plot", "semantic_type": "main", "content": {"coords": list(range(200_000))}},
+            {"type": "datatable", "semantic_type": "main", "content": {"rows": 3}},
+        ]}]}
+        slim = slim_raw_payload(payload)
+        blocks = slim["messages"][0]["blocks"]
+        self.assertEqual(blocks[0]["content"], "The key finding is X.")  # text untouched
+        self.assertEqual(blocks[1]["content"]["_stripped"], "plot")     # heavy plot stubbed
+        self.assertIn("_original_bytes", blocks[1]["content"])
+        self.assertEqual(blocks[2]["content"], {"rows": 3})             # small table untouched
+        # The stubbed payload must still yield the same readable turns.
+        self.assertEqual(extract_messages(slim)[0]["content"], "The key finding is X.")
+
     def test_one_session_can_write_multiple_findings_and_an_edge(self):
         with tempfile.TemporaryDirectory() as directory:
             connection = connect(Path(directory) / "breadcrumbs.db")
@@ -135,10 +151,12 @@ class IngestionTests(unittest.TestCase):
             write_payload(connection, {"findings": [
                 {"id": "F-118", "category": "LUAD-immune", "disease": "LUAD", "hypothesis_text": "first",
                  "entities": ["CD8A"], "effect": "HR 0.58", "status": "confirmed", "reason": None,
-                 "author": "Aisha", "created_at": "2027-01-01T00:00:00Z", "source_session_id": "sess-2027"},
+                 "author": "Aisha", "created_at": "2027-01-01T00:00:00Z", "source_session_id": "sess-2027",
+                 "source_type": "internal"},
                 {"id": "F-119", "category": "LUAD-immune", "disease": "LUAD", "hypothesis_text": "second",
                  "entities": ["LKB1", "AJCC_stage"], "effect": "HR 0.79", "status": "abandoned", "reason": "stage",
-                 "author": "Aisha", "created_at": "2027-01-01T00:00:00Z", "source_session_id": "sess-2027"},
+                 "author": "Aisha", "created_at": "2027-01-01T00:00:00Z", "source_session_id": "sess-2027",
+                 "source_type": "internal"},
             ], "edges": [{"from_id": "F-119", "to_id": "F-118", "relationship": "extends"}]})
             self.assertEqual(connection.execute("SELECT count(*) FROM findings").fetchone()[0], 2)
             self.assertEqual(connection.execute("SELECT entities FROM findings WHERE id = 'F-119'").fetchone()[0], '["STK11", "AJCC_STAGE"]')

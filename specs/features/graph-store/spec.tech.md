@@ -103,3 +103,22 @@ Component IDs must stay in the same order as `components.md` and `feature.json`.
 - **Status:** not-built.
 - **REQ-006:** The migration is idempotent — it runs twice with the same result — and row counts in
   `breadcrumbs.db` are unchanged afterwards.
+
+### BC-GRAPH-007 — Dataset catalog
+- **Behavior:** Records what a K Pro-hosted dataset actually has — its tables, and each column's
+  declared possible values, data type, and completeness %, as shown at
+  `https://k.owkin.com/explore-data/patient-data/<DATASET>`. This is data-availability provenance,
+  distinct from a finding: it lets a finding's free-text `provenance` field, and a new hypothesis,
+  be checked against real data availability instead of trusted as prose.
+- **Data:** `datasets`, `dataset_columns`.
+- **Source:** `schema/graph_schema.sql` (dataset catalog tables); `ingestion/store.py`
+  (`parse_dataset_overview`, `parse_available_tables`, `parse_dataset_columns`, `upsert_dataset`,
+  `upsert_dataset_columns`); `ingestion/ingest_dataset_catalog.py`.
+- **Status:** gap — the `overview`/`table` file-recovery path is built and tested against a real
+  captured MOSAIC Window page (`tests/test_dataset_catalog.py`). The `scrape` subcommand's live
+  Playwright DOM walk has **not been run against the authenticated production page** and its
+  selectors (`find_column_grid_text`'s ancestor walk from the "Column Name" header) are unverified
+  — see `review-queue.md`.
+- **REQ-008:** `parse_dataset_overview`/`parse_available_tables`/`parse_dataset_columns` round-trip
+  a real captured K Pro Explore Data page's text into `datasets`/`dataset_columns` rows, and
+  re-ingesting one table's grid replaces only that table's columns.

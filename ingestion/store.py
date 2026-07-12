@@ -217,3 +217,182 @@ def record_error(connection: sqlite3.Connection, session_id: str | None, url: st
             "INSERT INTO ingestion_errors(session_id, url, error, created_at) VALUES (?, ?, ?, ?)",
             (session_id, url, error, utc_now()),
         )
+
+
+_DATASET_COLUMN_HEADER = ("column name", "possible values", "data type", "completeness")
+_COMPLETENESS_RE = re.compile(r"^([\d.]+)\s*%$")
+
+
+def parse_dataset_columns(text: str) -> list[dict[str, Any]]:
+    """Parse K Pro's Explore Data column grid, captured as plain page text.
+
+    The grid renders as a flat, repeating run of four values per column (name, possible
+    values, data type, completeness %), preceded by one occurrence of those four header
+    labels. There is no other structure to lean on once the page is reduced to text — a
+    header label that also happened to appear as a column's own data would break this,
+    which hasn't occurred for any K Pro dataset table seen so far. A trailing partial group
+    (a capture cut off mid-column) is dropped rather than stored as a half-record.
+    """
+    blocks = [block.strip() for block in re.split(r"\n\s*\n", text) if block.strip()]
+    if len(blocks) >= 4 and tuple(block.lower() for block in blocks[:4]) == _DATASET_COLUMN_HEADER:
+        blocks = blocks[4:]
+    columns = []
+    complete_rows = len(blocks) - (len(blocks) % 4)
+    for i in range(0, complete_rows, 4):
+        name, possible_values, data_type, completeness_raw = blocks[i : i + 4]
+        match = _COMPLETENESS_RE.match(completeness_raw.strip())
+        columns.append({
+            "column_name": name,
+            "possible_values": None if possible_values in ("—", "-") else possible_values,
+            "data_type": data_type,
+            "completeness_pct": float(match.group(1)) if match else None,
+        })
+    return columns
+
+
+_OVERVIEW_FIELDS = {
+    "name": "name",
+    "source": "source",
+    "total patients": "total_patients",
+    "total samples": "total_samples",
+    "description": "description",
+}
+
+# Recognized as label lines (section boundaries) even though only the fields above are
+# captured — "Access" and the free-form sections after Description exist purely so their
+# value/section text doesn't get swallowed into the field before them.
+_OVERVIEW_LABELS = frozenset(_OVERVIEW_FIELDS) | {
+    "access",
+    "indications",
+    "modalities",
+    "inclusion & exclusion criteria",
+    "available tables",
+}
+
+
+def parse_dataset_overview(text: str) -> dict[str, Any]:
+    """Parse K Pro's dataset overview panel (Name/Source/Access/Total patients/.../Description).
+
+    Only the scalar fields the `datasets` table has columns for are extracted; free-form
+    sections after Description (Indications, Modalities, Inclusion & Exclusion Criteria)
+    are recognized only as terminators, not extracted — they don't fit scalar columns and
+    stay in the caller's raw_text for provenance instead.
+
+    This scans line by line for known label lines rather than splitting on blank-line
+    blocks: a label and the value above it are not reliably separated by a blank line in a
+    browser copy/paste (e.g. "...MOSAIC WINDOW\nSource\n\nOwkin..." — no blank line between
+    the Name value and the Source label), so a field's value runs until the next
+    recognized label line, wherever it falls.
+    """
+    lines = text.splitlines()
+    overview: dict[str, Any] = {}
+    i, n = 0, len(lines)
+    while i < n:
+        field = _OVERVIEW_FIELDS.get(lines[i].strip().lower())
+        if field is None:
+            i += 1
+            continue
+        j = i + 1
+        value_lines: list[str] = []
+        while j < n and lines[j].strip().lower() not in _OVERVIEW_LABELS:
+            value_lines.append(lines[j])
+            j += 1
+        value = "\n".join(value_lines).strip()
+        if value and field not in overview:
+            overview[field] = value
+        i = j
+    for key in ("total_patients", "total_samples"):
+        if key in overview:
+            try:
+                overview[key] = int(overview[key].replace(",", ""))
+            except ValueError:
+                overview[key] = None
+    return overview
+
+
+_TABLE_COLUMN_COUNT_RE = re.compile(r"^(\d+)\s+columns?$", re.I)
+
+
+def parse_available_tables(text: str) -> dict[str, int]:
+    """Parse the 'Available tables' list (table name, then 'N columns') into declared counts.
+
+    Declared counts are a sanity check, not authoritative: the real count is
+    `COUNT(*)` over `dataset_columns` for that table. Compare the two after ingesting a
+    table's grid — a mismatch means the scrape only captured part of it.
+    """
+    blocks = [block.strip() for block in re.split(r"\n\s*\n", text) if block.strip()]
+    tables: dict[str, int] = {}
+    for i in range(len(blocks) - 1):
+        match = _TABLE_COLUMN_COUNT_RE.match(blocks[i + 1])
+        if match and blocks[i].lower() != "available tables" and not _TABLE_COLUMN_COUNT_RE.match(blocks[i]):
+            tables[blocks[i]] = int(match.group(1))
+    return tables
+
+
+def upsert_dataset(
+    connection: sqlite3.Connection,
+    *,
+    dataset_id: str,
+    name: str,
+    url: str,
+    source: str | None = None,
+    total_patients: int | None = None,
+    total_samples: int | None = None,
+    description: str | None = None,
+    raw_text: str | None = None,
+) -> None:
+    with connection:
+        connection.execute(
+            """
+            INSERT INTO datasets(id, name, source, total_patients, total_samples, description, url, scraped_at, raw_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                source = excluded.source,
+                total_patients = excluded.total_patients,
+                total_samples = excluded.total_samples,
+                description = excluded.description,
+                url = excluded.url,
+                scraped_at = excluded.scraped_at,
+                raw_text = excluded.raw_text
+            """,
+            (dataset_id, name, source, total_patients, total_samples, description, url, utc_now(), raw_text),
+        )
+
+
+def upsert_dataset_columns(
+    connection: sqlite3.Connection,
+    *,
+    dataset_id: str,
+    table_name: str,
+    columns: Iterable[dict[str, Any]],
+) -> None:
+    """Replace one table's column set atomically, scoped to (dataset_id, table_name).
+
+    Re-scraping the same table (e.g. after K Pro adds a column) replaces just that table's
+    rows; every other table in the same dataset is untouched.
+    """
+    rows = list(columns)
+    with connection:
+        connection.execute(
+            "DELETE FROM dataset_columns WHERE dataset_id = ? AND table_name = ?",
+            (dataset_id, table_name),
+        )
+        connection.executemany(
+            """
+            INSERT INTO dataset_columns(id, dataset_id, table_name, column_name, possible_values, data_type, completeness_pct)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    f"{dataset_id}:{table_name}:{col['column_name']}",
+                    dataset_id,
+                    table_name,
+                    col["column_name"],
+                    col.get("possible_values"),
+                    col.get("data_type"),
+                    col.get("completeness_pct"),
+                )
+                for col in rows
+            ],
+        )

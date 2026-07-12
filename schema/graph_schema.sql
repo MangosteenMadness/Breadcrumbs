@@ -101,3 +101,33 @@ CREATE TABLE IF NOT EXISTS ingestion_errors (
     error       TEXT NOT NULL,
     created_at  TEXT NOT NULL
 );
+
+-- K Pro's Explore Data catalog (e.g. https://k.owkin.com/explore-data/patient-data/MOSAIC_WINDOW):
+-- which datasets exist, what tables they carry, and each column's declared possible values, data
+-- type, and completeness. This is data-availability provenance, not a finding — it lets a
+-- finding's free-text `provenance` field and a new hypothesis both be checked against what a
+-- dataset actually has, rather than trusted as prose.
+CREATE TABLE IF NOT EXISTS datasets (
+    id              TEXT PRIMARY KEY,       -- e.g. "mosaic_window"
+    name            TEXT NOT NULL,          -- e.g. "MOSAIC WINDOW"
+    source          TEXT,                   -- e.g. "Owkin"
+    total_patients  INTEGER,
+    total_samples   INTEGER,
+    description     TEXT,
+    url             TEXT NOT NULL,
+    scraped_at      TEXT NOT NULL,
+    raw_text        TEXT                    -- full captured page text/JSON, for provenance
+);
+
+CREATE TABLE IF NOT EXISTS dataset_columns (
+    id                TEXT PRIMARY KEY,     -- f"{dataset_id}:{table_name}:{column_name}"
+    dataset_id        TEXT NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
+    table_name        TEXT NOT NULL,        -- e.g. "clinical_data_table"
+    column_name       TEXT NOT NULL,
+    possible_values   TEXT,                 -- category list or numeric range, as displayed
+    data_type         TEXT,                 -- category | float | int | bool
+    completeness_pct  REAL,                 -- 0-100
+    UNIQUE(dataset_id, table_name, column_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dataset_columns_dataset ON dataset_columns(dataset_id, table_name);

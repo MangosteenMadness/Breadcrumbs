@@ -87,6 +87,19 @@
       "reviewPath": ".spec/evidence/graph-store/pending/credibility-review.md",
       "satisfied": false,
       "summary": ""
+    },
+    {
+      "id": "REQ-008",
+      "kind": "command",
+      "detail": "Dataset catalog parse/upsert round-trip against a real captured MOSAIC Window page",
+      "command": "python -m pytest tests/test_dataset_catalog.py",
+      "cwd": ".",
+      "startedAt": "2026-07-12T00:58:54Z",
+      "finishedAt": "2026-07-12T00:58:54Z",
+      "logPath": ".spec/evidence/graph-store/dataset-catalog-001/test_dataset_catalog.log",
+      "artifactHash": "",
+      "satisfied": true,
+      "summary": "4 passed: overview parses despite inconsistent blank-line spacing, available-tables list, column grid parse with partial-group drop, and scoped upsert round-trip."
     }
   ],
   "complete": false

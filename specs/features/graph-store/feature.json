@@ -12,7 +12,8 @@
     "BC-GRAPH-003",
     "BC-GRAPH-004",
     "BC-GRAPH-005",
-    "BC-GRAPH-006"
+    "BC-GRAPH-006",
+    "BC-GRAPH-007"
   ],
   "acceptance_criteria": [
     {
@@ -57,6 +58,12 @@
       "coverage": "manual_review",
       "reviewer": "Biologist 2",
       "evidence": "review-note"
+    },
+    {
+      "id": "REQ-008",
+      "text": "A dataset's overview and table/column catalog, captured as page text from K Pro Explore Data, parses into datasets/dataset_columns rows, and re-ingesting one table's grid replaces only that table's columns.",
+      "coverage": "automated_check",
+      "command": "python -m pytest tests/test_dataset_catalog.py"
     }
   ],
   "evidence_required": ["tests"],
@@ -123,6 +130,32 @@
           { "name": "title", "type": "text" },
           { "name": "scraped_at", "type": "text" },
           { "name": "raw_json", "type": "text" }
+        ]
+      },
+      {
+        "name": "datasets",
+        "columns": [
+          { "name": "id", "type": "text" },
+          { "name": "name", "type": "text" },
+          { "name": "source", "type": "text" },
+          { "name": "total_patients", "type": "integer" },
+          { "name": "total_samples", "type": "integer" },
+          { "name": "description", "type": "text" },
+          { "name": "url", "type": "text" },
+          { "name": "scraped_at", "type": "text" },
+          { "name": "raw_text", "type": "text" }
+        ]
+      },
+      {
+        "name": "dataset_columns",
+        "columns": [
+          { "name": "id", "type": "text" },
+          { "name": "dataset_id", "type": "text" },
+          { "name": "table_name", "type": "text" },
+          { "name": "column_name", "type": "text" },
+          { "name": "possible_values", "type": "text" },
+          { "name": "data_type", "type": "text" },
+          { "name": "completeness_pct", "type": "real" }
         ]
       }
     ],
