@@ -1,8 +1,7 @@
 {
-    "graph_data": {
       "findings": [
         {
-          "id": "local_1",
+          "id": "p1_local_1",
           "source_type": "internal",
           "category": "hgsoc-immune",
           "disease": "HGSOC",
@@ -20,5 +19,4 @@
         }
       ],
       "edges": []
-    }
   }
