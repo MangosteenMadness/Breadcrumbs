@@ -633,7 +633,9 @@ function TrailGraph({
 }) {
   const active = highlight.length > 0;
   const hset = new Set(highlight);
-  const [hover, setHover] = useState<Finding | null>(null);
+  // anchor the hover card to the marker's real on-screen position (cx,cy) so it
+  // can be viewport-fixed — that keeps it from being clipped by the scrolling panel.
+  const [hover, setHover] = useState<{ f: Finding; cx: number; cy: number } | null>(null);
 
   // the retrace path: thread the matched markers in reveal order — grows
   // one segment at a time as `highlight` fills in.
@@ -690,8 +692,11 @@ function TrailGraph({
             className={"gnode" + (dim ? " dim" : "")}
             key={f.id}
             onClick={() => onPick(f)}
-            onMouseEnter={() => setHover(f)}
-            onMouseLeave={() => setHover((h) => (h === f ? null : h))}
+            onMouseEnter={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setHover({ f, cx: r.left + r.width / 2, cy: r.top + r.height / 2 });
+            }}
+            onMouseLeave={() => setHover((h) => (h?.f === f ? null : h))}
           >
             {/* invisible hit target — bigger than the cairn so hover is easy to land */}
             <circle cx={f.x} cy={f.y} r={11} fill="transparent" />
@@ -722,20 +727,37 @@ function TrailGraph({
       })}
     </svg>
 
-    {hover && <NodeCard f={hover} large={large} />}
+    {hover && <NodeCard hover={hover} large={large} />}
     </div>
   );
 }
 
 /* ---------------- node hover card ----------------
    The proof-of-data panel for the demo: hover any marker and see the full
-   record behind it — the fields the UI renders, plus the raw JSON payload. */
-function NodeCard({ f, large }: { f: Finding; large: boolean }) {
-  // viewBox is 380 × 520; the svg fills the wrapper, so % maps node coords → pixels.
-  const leftPct = (f.x / 380) * 100;
-  const topPct = (f.y / 520) * 100;
-  const flipX = f.x > 190; // near the right edge → grow the card leftward
-  const flipY = f.y > 300; // near the bottom → grow it upward
+   record behind it — the fields the UI renders, plus the raw JSON payload.
+   Viewport-fixed and clamped so it never spills off-screen or gets clipped
+   by the scrolling trail panel. */
+function NodeCard({
+  hover,
+  large,
+}: {
+  hover: { f: Finding; cx: number; cy: number };
+  large: boolean;
+}) {
+  const { f, cx, cy } = hover;
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const cardW = large ? 400 : 340;
+  const estH = 380; // upper bound; the JSON block scrolls if content is taller
+  const gap = 16;
+
+  // sit to the left of the marker if the right side would overflow
+  const flipX = cx + gap + cardW > vw - 12;
+  let left = flipX ? cx - gap - cardW : cx + gap;
+  let top = cy - 44;
+  // clamp fully inside the viewport
+  left = Math.max(12, Math.min(left, vw - cardW - 12));
+  top = Math.max(12, Math.min(top, vh - estH - 12));
 
   const record = {
     id: f.id,
@@ -753,13 +775,7 @@ function NodeCard({ f, large }: { f: Finding; large: boolean }) {
   return (
     <div
       className={"nodecard" + (large ? " nc-large" : "")}
-      style={{
-        left: `${leftPct}%`,
-        top: `${topPct}%`,
-        transform: `translate(${flipX ? "calc(-100% - 16px)" : "16px"}, ${
-          flipY ? "calc(-100% + 14px)" : "-14px"
-        })`,
-      }}
+      style={{ left, top, width: cardW }}
     >
       <div className="nc-head">
         <span className={"nc-badge nc-" + f.st}>{f.st.replace("_", " ")}</span>
